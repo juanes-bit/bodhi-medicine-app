@@ -6,7 +6,7 @@ export function useCreateCheckoutSession() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (planId?: string) => BodhiAPI.createCheckoutSession(),
+    mutationFn: (planId?: string) => BodhiAPI.createCheckoutSession(planId),
     onSuccess: () => {
       // Invalidate user queries to refresh membership status after successful payment
       queryClient.invalidateQueries({ queryKey: ["me"] })
