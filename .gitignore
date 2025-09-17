@@ -1,0 +1,16 @@
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.log
+.DS_Store
+.vscode/
+.env
+.env.*
+coverage/
+*.zip
+*.tar
+*.tar.gz
+*.mp4
+*.mov
