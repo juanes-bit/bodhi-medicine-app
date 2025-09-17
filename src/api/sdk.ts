@@ -1,6 +1,6 @@
 import { apiClient } from "./apiClient" // Assuming apiClient is imported from another file
 import type { CheckoutResponse } from "./types" // Assuming CheckoutResponse is imported from another file
-const USE_MOCKS = process.env.USE_MOCKS === "true" // Assuming USE_MOCKS is a environment variable
+const USE_MOCKS = process.env.USE_MOCKS === "true" // Assuming USE_MOCKS is an environment variable
 
 export class BodhiAPI {
   // ... existing methods ...
