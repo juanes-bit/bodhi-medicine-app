@@ -1,0 +1,25 @@
+HTTP/2 500 
+date: Thu, 25 Sep 2025 17:11:12 GMT
+content-type: text/html; charset=UTF-8
+x-powered-by: PHP/8.3.25
+x-powered-by: PleskLin
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+x-robots-tag: noindex
+link: <https://staging.bodhimedicine.com/wp-json/>; rel="https://api.w.org/"
+x-content-type-options: nosniff
+access-control-expose-headers: X-WP-Total, X-WP-TotalPages, Link, Jet-Query-Total, Jet-Query-Pages
+access-control-allow-headers: Authorization, X-WP-Nonce, Content-Disposition, Content-MD5, Content-Type
+x-wp-nonce: aef4e09c83
+expires: Wed, 11 Jan 1984 05:00:00 GMT
+cache-control: no-cache, must-revalidate, max-age=0, no-store, private, no-store
+pragma: no-cache
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=pU2ghTkeepTzP8F8zj5zEUQDJlahk9lTPfaBGMJO3cFSAwsHMKqC%2BMpij2Hdz1rhEWhhKoPqsCaaXbsJzRtPmGPcgkK1y64BHUPc5i4rleVajvmdoE5epg%3D%3D"}]}
+vary: Accept-Encoding
+server: cloudflare
+alt-svc: h3=":443"; ma=86400
+x-turbo-charged-by: LiteSpeed
+cf-cache-status: DYNAMIC
+speculation-rules: "/cdn-cgi/speculation"
+set-cookie: wp-wpml_current_admin_language_d41d8cd98f00b204e9800998ecf8427e=es; SameSite=Lax; Secure; Path=/; Expires=Fri, 26 Sep 2025 17:11:10 GMT
+cf-ray: 984c2398ce56a4ec-MIA
+

@@ -8,7 +8,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "release": "standard-version -a",
+    "postrelease": "node scripts/sync-expo.js && git push --follow-tags origin main"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -47,6 +49,7 @@
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "standard-version": "^9.5.0",
     "typescript": "~5.9.2"
   },
   "private": true

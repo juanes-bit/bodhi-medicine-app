@@ -1,0 +1,28 @@
+HTTP/2 200 
+date: Fri, 03 Oct 2025 15:11:07 GMT
+content-type: application/json; charset=UTF-8
+x-powered-by: PHP/8.3.26
+x-powered-by: PleskLin
+x-robots-tag: noindex
+x-content-type-options: nosniff
+referrer-policy: strict-origin-when-cross-origin
+x-frame-options: SAMEORIGIN
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+expires: Wed, 11 Jan 1984 05:00:00 GMT
+cache-control: no-cache, must-revalidate, max-age=0, no-store, private, no-store
+pragma: no-cache
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=0dF3e%2FQP%2F2ypol%2Fe%2BkM3X3wQRH%2BSiI6jOjzlR0YgUwRyd1Q69qg2xzBeXHNH%2FWrbahZjsLapxRjcu7UuqO%2F2A6B9%2F3iGU4MEErCGP%2FwBsuNl2mfxVRqmFA%3D%3D"}]}
+vary: Accept-Encoding
+server: cloudflare
+alt-svc: h3=":443"; ma=86400
+x-turbo-charged-by: LiteSpeed
+cf-cache-status: DYNAMIC
+set-cookie: wordpress_sec_3de064a0ac10c55f474411a9c4a7d577=Alrit%7C1760713867%7CafEsXz0NbZa4Tk00wJiFX9VQLQe193ggSIYagZBWUOe%7C34cbe07a1ce856ba082ad671b0c6ed936d130116051cb8417c21c06ba62ee9d0; HttpOnly; Secure; Path=/wp-content/plugins; Max-Age=1252800; Expires=Sat, 18 Oct 2025 03:11:07 GMT
+set-cookie: wordpress_sec_3de064a0ac10c55f474411a9c4a7d577=Alrit%7C1760713867%7CafEsXz0NbZa4Tk00wJiFX9VQLQe193ggSIYagZBWUOe%7C34cbe07a1ce856ba082ad671b0c6ed936d130116051cb8417c21c06ba62ee9d0; HttpOnly; Secure; Path=/wp-admin; Max-Age=1252800; Expires=Sat, 18 Oct 2025 03:11:07 GMT
+set-cookie: wordpress_logged_in_3de064a0ac10c55f474411a9c4a7d577=Alrit%7C1760713867%7CafEsXz0NbZa4Tk00wJiFX9VQLQe193ggSIYagZBWUOe%7C345e8a5730413d036d82249906ea52c1a347eeeba2c305f4cf25c5ae074dbdc8; HttpOnly; Secure; Path=/; Max-Age=1252800; Expires=Sat, 18 Oct 2025 03:11:07 GMT
+set-cookie: wp-wpml_login_lang=deleted; Secure; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:01 GMT
+set-cookie: wordpress_sec_3de064a0ac10c55f474411a9c4a7d577=Alrit%7C1760713867%7Ckp8iPgWGUS5cWsKRSowHzWLr9sqNUBPadNL1TzZZnHa%7C97ee0f732de17ebb37d905f883f1bc32bfe13997133dcda778503eb16de105d5; HttpOnly; Secure; Path=/wp-content/plugins; Max-Age=1252800; Expires=Sat, 18 Oct 2025 03:11:07 GMT
+set-cookie: wordpress_sec_3de064a0ac10c55f474411a9c4a7d577=Alrit%7C1760713867%7Ckp8iPgWGUS5cWsKRSowHzWLr9sqNUBPadNL1TzZZnHa%7C97ee0f732de17ebb37d905f883f1bc32bfe13997133dcda778503eb16de105d5; HttpOnly; Secure; Path=/wp-admin; Max-Age=1252800; Expires=Sat, 18 Oct 2025 03:11:07 GMT
+set-cookie: wordpress_logged_in_3de064a0ac10c55f474411a9c4a7d577=Alrit%7C1760713867%7Ckp8iPgWGUS5cWsKRSowHzWLr9sqNUBPadNL1TzZZnHa%7Cf8eb4860f700fda46efbf6890581cc2e27163477528006beb2bb5c96cceefc23; HttpOnly; Secure; Path=/; Max-Age=1252800; Expires=Sat, 18 Oct 2025 03:11:07 GMT
+cf-ray: 988d5e96ace750d1-MIA
+
