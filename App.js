@@ -1,11 +1,10 @@
-import React from "react";
-import { View, Text, FlatList, TouchableOpacity, Image } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { FlatList, Image, Text, TouchableOpacity, View } from "react-native";
 
-import useCourses from "./src/hooks/useCourses";
 import useCourseDetail from "./src/hooks/useCourseDetail";
+import useCourses from "./src/hooks/useCourses";
 import LeccionScreen from "./src/screens/LeccionScreen";
 
 const queryClient = new QueryClient();
