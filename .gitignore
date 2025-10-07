@@ -41,3 +41,32 @@ app-example
 # generated native folders
 /ios
 /android
+
+TAG="# === Bodhi ignore ==="
+grep -q "$TAG" .gitignore 2>/dev/null || cat >> .gitignore <<'EOF'
+# === Bodhi ignore ===
+node_modules/
+.next/
+dist/
+build/
+.expo/
+android/
+ios/
+*.log
+.DS_Store
+.idea/
+.vscode/
+.env
+.env.*
+.env.local
+cookies.txt
+headers.txt
+wp-config.php
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+# === Bodhi extra ignore ===
+backups/
+web/.jar
+web/.login.out
+web/.token.out

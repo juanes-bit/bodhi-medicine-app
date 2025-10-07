@@ -1,49 +1,41 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { login } from '@/lib/api';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [username, setU] = useState('');
+  const [password, setP] = useState('');
+  const [loading, setL] = useState(false);
+  const [error, setE] = useState<string | null>(null);
+  const router = useRouter();
+  const sp = useSearchParams();
+  const next = sp.get('next') || '/courses';
+
+  useEffect(() => { setE(null); }, [username, password]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    setL(true);
     try {
       await login(username, password);
-      const next = new URLSearchParams(window.location.search).get('next') || '/courses';
-      window.location.assign(next);
+      router.replace(next);
     } catch (err: any) {
-      setError(err?.message || 'Error');
-    } finally {
-      setLoading(false);
-    }
+      setE(err?.message ?? 'Error al iniciar sesión');
+    } finally { setL(false); }
   }
 
   return (
-    <main style={{ padding: 24 }}>
+    <main style={{maxWidth:420, margin:'64px auto', padding:24}}>
       <h1>Iniciar sesión</h1>
-      <form onSubmit={onSubmit}>
-        <div>
-          <label>Usuario</label>
-          <br />
-          <input value={username} onChange={(e) => setUsername(e.target.value)} required />
-        </div>
-        <div style={{ marginTop: 8 }}>
-          <label>Contraseña</label>
-          <br />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        </div>
-        <div style={{ marginTop: 12 }}>
-          <button type="submit" disabled={loading}>
-            {loading ? 'Entrando…' : 'Entrar'}
-          </button>
-        </div>
+      <form onSubmit={onSubmit} style={{display:'grid', gap:12}}>
+        <label>Usuario</label>
+        <input value={username} onChange={e=>setU(e.target.value)} required />
+        <label>Contraseña</label>
+        <input type="password" value={password} onChange={e=>setP(e.target.value)} required />
+        <button disabled={loading} type="submit">{loading?'Entrando…':'Entrar'}</button>
       </form>
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
+      {error && <p style={{color:'crimson'}}>{error}</p>}
     </main>
   );
 }

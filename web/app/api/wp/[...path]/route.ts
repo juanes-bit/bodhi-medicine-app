@@ -1,125 +1,91 @@
-import type { NextRequest } from 'next/server';
+import { Buffer } from 'node:buffer';
+import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const WP_BASE = process.env.WP_BASE!; // p.ej. https://staging.bodhimedicine.com
+const TARGET = (process.env.WP_BASE ?? 'https://staging.bodhimedicine.com').replace(/\/+$/,'');
 
-const HOP = new Set([
-  'connection',
-  'keep-alive',
-  'proxy-authenticate',
-  'proxy-authorization',
-  'te',
-  'trailer',
-  'transfer-encoding',
-  'upgrade',
-  'content-length',
-  'host',
-  'accept-encoding',
-]);
-
-function buildUrl(path: string[] = [], req: NextRequest) {
-  const joined = path.length ? path.join('/') : '';
+async function handler(req: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
+  const { path = [] } = await ctx.params;
+  const joined = path.join('/');
   const search = req.nextUrl.search || '';
-  const slash = joined ? `/${joined}` : '';
-  return `${WP_BASE}${slash}${search}`;
-}
+  const upstream = `${TARGET}/${joined}${search}`;
 
-function sanitizeReqHeaders(src: Headers) {
-  const headers = new Headers();
-  src.forEach((value, key) => {
-    if (!HOP.has(key.toLowerCase())) headers.set(key, value);
-  });
-  return headers;
-}
+  const headers = new Headers(req.headers);
+  headers.set('accept-encoding', 'identity');
+  headers.delete('host');
+  headers.delete('connection');
+  headers.delete('content-length');
 
-function rewriteSetCookies(all?: string[]) {
-  return (all ?? []).map((cookie) =>
-    cookie
-      .replace(/;\s*Domain=[^;]*/ig, '')
-      .replace(/;\s*Secure/ig, '')
-      .replace(/;\s*Path=[^;]*/i, '; Path=/')
-      .concat(/;\s*SameSite=/i.test(cookie) ? '' : '; SameSite=Lax')
-  );
-}
+  const session = req.cookies.get('wp_session')?.value;
+  if (session) headers.set('cookie', session); else headers.delete('cookie');
 
-function sanitizeResHeaders(src: Headers) {
-  const out = new Headers();
-  src.forEach((value, key) => {
-    const lower = key.toLowerCase();
-    if (lower === 'set-cookie' || lower === 'content-encoding' || lower === 'transfer-encoding' || lower === 'content-length' || lower === 'connection') return;
-    out.set(key, value);
-  });
+  const body = req.method === 'GET' || req.method === 'HEAD'
+    ? undefined
+    : Buffer.from(await req.arrayBuffer());
 
-  const raw = (src as any).raw?.();
-  const setCookies: string[] | undefined = raw ? raw['set-cookie'] : undefined;
-  for (const cookie of rewriteSetCookies(setCookies)) out.append('set-cookie', cookie);
-  return out;
-}
-
-async function resolvePath(ctx: { params: { path: string[] } | Promise<{ path: string[] }> }): Promise<string[]> {
-  const raw = ctx?.params;
-  if (!raw) return [];
-  if (typeof (raw as Promise<{ path: string[] }>).then === 'function') {
-    const awaited = await raw;
-    return awaited?.path ?? [];
-  }
-  return (raw as { path: string[] })?.path ?? [];
-}
-
-async function forward(method: string, req: NextRequest, ctx: { params: { path: string[] } | Promise<{ path: string[] }> }) {
-  const path = await resolvePath(ctx);
-  const url = buildUrl(path, req);
-  const headers = sanitizeReqHeaders(req.headers);
-
-  const isAdminAjax = url.includes('/wp-admin/admin-ajax.php');
-  if (isAdminAjax) {
-    headers.set('origin', WP_BASE);
-    headers.set('referer', `${WP_BASE}/wp-admin/admin-ajax.php`);
-  }
-
-  let body: string | ArrayBuffer | undefined;
-  if (method !== 'GET' && method !== 'HEAD') {
-    const contentType = req.headers.get('content-type') || '';
-    if (isAdminAjax || /application\/x-www-form-urlencoded|json|text/i.test(contentType)) {
-      body = await req.text();
-      if (isAdminAjax && !/application\/x-www-form-urlencoded/i.test(contentType)) {
-        headers.set('content-type', 'application/x-www-form-urlencoded; charset=UTF-8');
-      }
-    } else {
-      body = await req.arrayBuffer();
-    }
-  }
-
-  const upstream = await fetch(url, {
-    method,
+  const upstreamRes = await fetch(upstream, {
+    method: req.method,
     headers,
     body,
     redirect: 'manual',
+    cache: 'no-store',
   });
-  const resHeaders = sanitizeResHeaders(upstream.headers);
-  const buffer = await upstream.arrayBuffer();
-  return new Response(buffer, { status: upstream.status, headers: resHeaders });
+
+  const outHeaders = new Headers(upstreamRes.headers);
+  outHeaders.delete('content-encoding');
+  outHeaders.delete('content-length');
+  outHeaders.delete('connection');
+
+  const rawSet = (upstreamRes.headers as any).getSetCookie?.() as string[] | undefined;
+  const setCookies = rawSet ?? (upstreamRes.headers.get('set-cookie') ? upstreamRes.headers.get('set-cookie')!.split(/,(?=[^ ;]+=)/g) : []);
+  outHeaders.delete('set-cookie');
+
+  let bridgeValue: string | null = null;
+  for (let cookie of setCookies) {
+    if (!cookie) continue;
+    const trimmed = cookie.trim();
+    if (!/wordpress_logged_in_|wordpress_sec_|wp-settings-/i.test(trimmed)) continue;
+
+    let rewritten = trimmed
+      .replace(/;\s*Domain=[^;]*/ig, '')
+      .replace(/;\s*Secure/ig, '')
+      .replace(/;\s*SameSite=None/ig, '; SameSite=Lax')
+      .replace(/;\s*Path=[^;]*/ig, '; Path=/');
+    if (!/;\s*SameSite=/i.test(rewritten)) rewritten += '; SameSite=Lax';
+    if (!/;\s*Path=/i.test(rewritten)) rewritten += '; Path=/';
+
+    outHeaders.append('set-cookie', rewritten);
+
+    if (!bridgeValue) {
+      const match = rewritten.match(/(wordpress_logged_in_[^=]+=[^;]+)/i);
+      if (match) bridgeValue = match[1];
+    }
+  }
+
+  const response = new NextResponse(upstreamRes.body, {
+    status: upstreamRes.status,
+    headers: outHeaders,
+  });
+
+  if (bridgeValue) {
+    response.cookies.set('wp_session', bridgeValue, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      secure: false,
+    });
+  }
+
+  return response;
 }
 
-export async function GET(req: NextRequest, ctx: { params: { path: string[] } | Promise<{ path: string[] }> }) {
-  return forward('GET', req, ctx);
-}
-export async function POST(req: NextRequest, ctx: { params: { path: string[] } | Promise<{ path: string[] }> }) {
-  return forward('POST', req, ctx);
-}
-export async function PUT(req: NextRequest, ctx: { params: { path: string[] } | Promise<{ path: string[] }> }) {
-  return forward('PUT', req, ctx);
-}
-export async function PATCH(req: NextRequest, ctx: { params: { path: string[] } | Promise<{ path: string[] }> }) {
-  return forward('PATCH', req, ctx);
-}
-export async function DELETE(req: NextRequest, ctx: { params: { path: string[] } | Promise<{ path: string[] }> }) {
-  return forward('DELETE', req, ctx);
-}
-export async function HEAD(req: NextRequest, ctx: { params: { path: string[] } | Promise<{ path: string[] }> }) {
-  return forward('HEAD', req, ctx);
-}
-export async function OPTIONS(req: NextRequest, ctx: { params: { path: string[] } | Promise<{ path: string[] }> }) {
-  return forward('OPTIONS', req, ctx);
-}
+export {
+  handler as GET,
+  handler as POST,
+  handler as PUT,
+  handler as PATCH,
+  handler as DELETE,
+  handler as OPTIONS,
+};
