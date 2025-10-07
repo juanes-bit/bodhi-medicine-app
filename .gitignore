@@ -36,3 +36,23 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+# === Bodhi RN/Expo ignore ===
+node_modules/
+.expo/
+android/
+ios/
+dist/
+build/
+*.log
+.DS_Store
+.idea/
+.vscode/
+.env
+.env.*
+.env.local
+cookies.txt
+headers.txt
+wp-config.php
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
