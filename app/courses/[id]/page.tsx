@@ -1,17 +1,23 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useLocalSearchParams } from 'expo-router';
 import { api, type CourseDetail, type Lesson, type ProgressRes } from '@/lib/api';
 
 export default function CourseDetailPage() {
-  const params = useParams<{ id: string }>();
-  const courseId = Number(params.id);
+  const { id } = useLocalSearchParams<{ id?: string | string[] }>();
+  const courseIdValue = Array.isArray(id) ? id[0] : id;
+  const courseId = courseIdValue ? Number(courseIdValue) : NaN;
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [progress, setProgress] = useState<ProgressRes | null>(null);
   const [loading, setL] = useState(true);
   const [error, setE] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!Number.isFinite(courseId)) {
+      setE('Curso inválido');
+      setL(false);
+      return;
+    }
     setE(null); setL(true);
     try {
       const [c, p] = await Promise.all([
@@ -27,6 +33,7 @@ export default function CourseDetailPage() {
   useEffect(() => { load(); }, [load]);
 
   async function markDone(lesson: Lesson) {
+    if (!Number.isFinite(courseId)) return;
     try {
       await api('/wp-json/bodhi/v1/progress', {
         method: 'POST',

@@ -9,7 +9,9 @@ const TARGET = (process.env.WP_BASE ?? 'https://staging.bodhimedicine.com').repl
 async function handler(req: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
   const { path = [] } = await ctx.params;
   const joined = path.join('/');
-  const search = req.nextUrl.search || '';
+  const nextUrl = req.nextUrl;
+  const search = nextUrl.search || '';
+  const action = nextUrl.searchParams.get('action');
   const upstream = `${TARGET}/${joined}${search}`;
 
   const headers = new Headers(req.headers);
@@ -18,8 +20,30 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path?: string[
   headers.delete('connection');
   headers.delete('content-length');
 
-  const session = req.cookies.get('wp_session')?.value;
-  if (session) headers.set('cookie', session); else headers.delete('cookie');
+  const session = req.cookies.get('wp_session')?.value ?? null;
+  const isLoginRequest = joined === 'wp-admin/admin-ajax.php' && action === 'bodhi_login';
+  const cookieHeader = headers.get('cookie');
+
+  if (isLoginRequest) {
+    headers.delete('cookie');
+  } else if (cookieHeader || session) {
+    const parts = (cookieHeader ?? '')
+      .split(/;\s*/)
+      .map(part => part.trim())
+      .filter(Boolean)
+      .filter(part => !/^wp_session=/i.test(part));
+
+    let hasLoggedIn = parts.some(part => /^wordpress_logged_in_/i.test(part));
+    if (session && !hasLoggedIn && !isLoginRequest) {
+      parts.push(session);
+      hasLoggedIn = true;
+    }
+
+    if (parts.length) headers.set('cookie', parts.join('; '));
+    else headers.delete('cookie');
+  } else {
+    headers.delete('cookie');
+  }
 
   const body = req.method === 'GET' || req.method === 'HEAD'
     ? undefined

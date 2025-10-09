@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { Link } from 'expo-router';
 import { api, type CourseListItem } from '@/lib/api';
-import Link from 'next/link';
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<CourseListItem[]>([]);

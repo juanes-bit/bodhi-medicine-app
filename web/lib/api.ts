@@ -1,5 +1,46 @@
 let nonce: string | null = null;
-const BASE = process.env.NEXT_PUBLIC_BASE!; // https://staging.bodhimedicine.com
+
+const FALLBACK_BASE = 'https://staging.bodhimedicine.com';
+
+function stripTrailingSlash(value: string) {
+  return value.replace(/\/+$/, '');
+}
+
+function joinUrl(base: string, path: string) {
+  const normalizedBase = base ? stripTrailingSlash(base) : '';
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${normalizedBase}${normalizedPath}`;
+}
+
+function resolveUrl(path: string) {
+  const envBase = process.env.NEXT_PUBLIC_BASE?.trim();
+  const wpBase = process.env.WP_BASE?.trim();
+
+  if (typeof window !== 'undefined') {
+    if (envBase) {
+      const trimmed = stripTrailingSlash(envBase);
+      if (/^https?:\/\//i.test(trimmed)) {
+        try {
+          const envUrl = new URL(trimmed);
+          if (envUrl.origin === window.location.origin) {
+            const prefix = envUrl.pathname === '/' ? '' : envUrl.pathname;
+            return joinUrl(prefix, path);
+          }
+        } catch {
+          // ignore parse errors and treat as relative
+        }
+      } else {
+        const relative = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+        return joinUrl(relative, path);
+      }
+    }
+    return joinUrl('/api/wp', path);
+  }
+
+  const serverBase =
+    (envBase && /^https?:\/\//i.test(envBase) ? envBase : wpBase) ?? FALLBACK_BASE;
+  return joinUrl(serverBase, path);
+}
 
 export function setNonce(n: string) {
   nonce = n;
@@ -25,7 +66,7 @@ async function handleJson(res: Response) {
 }
 
 export async function api(path: string, init: RequestInit = {}) {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(resolveUrl(path), {
     ...init,
     credentials: 'include',
     headers: {
@@ -46,7 +87,7 @@ export type ProgressRes = { summary: { pct?: number }, lessons: Array<{id:number
 
 export async function login(username: string, password: string) {
   const res = await fetch(
-    `${BASE}/wp-admin/admin-ajax.php?action=bodhi_login`,
+    resolveUrl('/wp-admin/admin-ajax.php?action=bodhi_login'),
     {
       method: 'POST',
       credentials: 'include',

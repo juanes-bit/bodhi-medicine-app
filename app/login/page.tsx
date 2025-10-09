@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { login } from '@/lib/api';
 
 export default function LoginPage() {
@@ -9,8 +9,9 @@ export default function LoginPage() {
   const [loading, setL] = useState(false);
   const [error, setE] = useState<string | null>(null);
   const router = useRouter();
-  const sp = useSearchParams();
-  const next = sp.get('next') || '/courses';
+  const { next } = useLocalSearchParams<{ next?: string | string[] }>();
+  const nextParam = Array.isArray(next) ? next[0] : next;
+  const nextPath = typeof nextParam === 'string' && nextParam.startsWith('/') ? nextParam : '/courses';
 
   useEffect(() => { setE(null); }, [username, password]);
 
@@ -19,7 +20,7 @@ export default function LoginPage() {
     setL(true);
     try {
       await login(username, password);
-      router.replace(next);
+      router.replace(nextPath);
     } catch (err: any) {
       setE(err?.message ?? 'Error al iniciar sesión');
     } finally { setL(false); }
