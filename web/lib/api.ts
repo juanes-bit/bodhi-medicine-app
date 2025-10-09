@@ -98,5 +98,8 @@ export async function login(username: string, password: string) {
   const json = await handleJson(res);
   if (!json?.ok || !json?.nonce) throw new Error('Login inválido');
   setNonce(json.nonce);
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('wp_nonce', json.nonce);
+  }
   return json; // { ok, user, nonce }
 }
