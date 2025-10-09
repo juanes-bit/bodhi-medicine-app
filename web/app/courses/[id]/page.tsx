@@ -5,6 +5,6 @@ type PageProps = {
 };
 
 export default function Page({ params }: PageProps) {
-  const courseId = Number(params.id);
-  return <CourseClient courseId={courseId} />;
+  const id = Number(params.id);
+  return <CourseClient id={id} />;
 }
