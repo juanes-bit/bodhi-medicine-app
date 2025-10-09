@@ -1,6 +1,11 @@
 import { Buffer } from 'node:buffer';
 import { NextRequest, NextResponse } from 'next/server';
 
+function normInt(value: string | null | undefined, fallback: number) {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? String(Math.floor(num)) : String(fallback);
+}
+
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +15,14 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path?: string[
   const { path = [] } = await ctx.params;
   const joined = path.join('/');
   const nextUrl = req.nextUrl;
-  const search = nextUrl.search || '';
+  const searchParams = new URLSearchParams(nextUrl.searchParams); // copy to mutate safely
+  if (searchParams.has('page')) {
+    searchParams.set('page', normInt(searchParams.get('page'), 1));
+  }
+  if (searchParams.has('per_page')) {
+    searchParams.set('per_page', normInt(searchParams.get('per_page'), 12));
+  }
+  const search = searchParams.toString() ? `?${searchParams.toString()}` : '';
   const action = nextUrl.searchParams.get('action');
   const upstream = `${TARGET}/${joined}${search}`;
 
