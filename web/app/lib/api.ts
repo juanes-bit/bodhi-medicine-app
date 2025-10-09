@@ -1,5 +1,6 @@
 import { absoluteUrl, authHeaders, parseJsonStrict } from '@/app/lib/http';
 import { normalizeCourse, normalizeProgress } from '@/app/lib/normalizers';
+import { createLimiter, fetchWithTimeout } from '@/app/lib/net';
 import type { CourseDetail, ProgressRes, Me } from '@/app/types/course';
 import type { Lesson } from '@/app/types/lesson';
 
@@ -86,39 +87,44 @@ export async function getCourses(opts?: { page?: number; per_page?: number }) {
 
     const courseIdSet = new Set<number>();
     const rowsById = new Map<number, any>();
+    const limit = createLimiter(6);
+    const seenUrl = new Set<string>();
 
     await Promise.all(
-      productIds.map(async (pid) => {
-        const variants = [
-          `/api/wp/wp-json/tva/v1/products/${pid}/courses`,
-          `/api/wp/wp-json/tva/v2/products/${pid}/courses`,
-        ];
-        for (const u of variants) {
-          try {
-            const res = await fetch(await absoluteUrl(u), { cache: 'no-store', headers: hdr });
-            if (!res.ok) continue;
-            const data = await parseJsonStrict(res);
-            const rows: any[] = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
-            for (const r of rows) {
-              const cid = Number(
-                r?.wp_post_id ??
-                r?.post_id ??
-                r?.course?.wp_post_id ??
-                r?.course?.post_id ??
-                r?.course_id ??
-                r?.id,
-              );
-              if (!Number.isFinite(cid)) continue;
-
-              courseIdSet.add(cid);
-              if (!rowsById.has(cid)) rowsById.set(cid, r);
+      productIds.map((pid) =>
+        limit(async () => {
+          const variants = [
+            `/api/wp/wp-json/tva/v1/products/${pid}/courses`,
+            `/api/wp/wp-json/tva/v2/products/${pid}/courses`,
+          ];
+          for (const u of variants) {
+            if (seenUrl.has(u)) break;
+            seenUrl.add(u);
+            try {
+              const res = await fetchWithTimeout(await absoluteUrl(u), { cache: 'no-store', headers: hdr }, 12000);
+              if (!res.ok) continue;
+              const data = await parseJsonStrict(res);
+              const rows: any[] = Array.isArray(data) ? data : Array.isArray((data as any)?.items) ? (data as any).items : [];
+              for (const r of rows) {
+                const cid = Number(
+                  r?.wp_post_id ??
+                  r?.post_id ??
+                  r?.course?.wp_post_id ??
+                  r?.course?.post_id ??
+                  r?.course_id ??
+                  r?.id,
+                );
+                if (!Number.isFinite(cid)) continue;
+                courseIdSet.add(cid);
+                if (!rowsById.has(cid)) rowsById.set(cid, r);
+              }
+              break;
+            } catch {
+              // intenta el siguiente variant
             }
-            break;
-          } catch {
-            // try next variant
           }
-        }
-      }),
+        }),
+      ),
     );
 
     const itemsFromTVA: any[] = Array.from(courseIdSet).map((cid) => {
@@ -141,6 +147,9 @@ export async function getCourses(opts?: { page?: number; per_page?: number }) {
     });
 
     if (itemsFromTVA.length) {
+      console.info(
+        `[BODHI] fallback=TVA user-courses page=${page} perPage=${perPage} items=${itemsFromTVA.length}`,
+      );
       items = itemsFromTVA;
     }
   }

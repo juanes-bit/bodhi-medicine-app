@@ -1,11 +1,5 @@
-import { notFound } from 'next/navigation';
 import CourseClient from './CourseClient';
-import {
-  getCourseById,
-  getProgressByCourse,
-  getMe,
-} from '@/app/lib/api';
-import type { CourseDetail, ProgressRes, Me } from '@/app/types/course';
+import { getCourseById, getProgressByCourse, getMe } from '@/app/lib/api';
 
 type PageParams = Promise<{ id: string }>;
 
@@ -13,32 +7,33 @@ export default async function Page({ params }: { params: PageParams }) {
   const { id } = await params;
   const courseId = Number(id);
 
-  if (!Number.isFinite(courseId) || courseId <= 0) {
-    notFound();
+  try {
+    const [course, progress, me] = await Promise.all([
+      getCourseById(courseId, { cache: 'no-store' }),
+      getProgressByCourse(courseId, { cache: 'no-store' }),
+      getMe({ cache: 'no-store' }),
+    ]);
+
+    if (!course || !course.id) {
+      return (
+        <main className="p-6">
+          <p>No se pudo cargar el curso.</p>
+          <a href={`/courses/${courseId}`} className="underline">
+            Reintentar
+          </a>
+        </main>
+      );
+    }
+
+    return <CourseClient id={courseId} course={course} progress={progress} me={me} />;
+  } catch (error) {
+    return (
+      <main className="p-6">
+        <p>No se pudo cargar el curso.</p>
+        <a href={`/courses/${courseId}`} className="underline">
+          Reintentar
+        </a>
+      </main>
+    );
   }
-
-  const [courseRes, progressRes, meRes] = await Promise.allSettled([
-    getCourseById(courseId, { cache: 'no-store' }),
-    getProgressByCourse(courseId, { cache: 'no-store' }),
-    getMe({ cache: 'no-store' }),
-  ]);
-
-  const course =
-    courseRes.status === 'fulfilled'
-      ? (courseRes.value as CourseDetail)
-      : null;
-  const progress =
-    progressRes.status === 'fulfilled'
-      ? (progressRes.value as ProgressRes)
-      : null;
-  const me = meRes.status === 'fulfilled' ? (meRes.value as Me) : null;
-
-  return (
-    <CourseClient
-      id={courseId}
-      course={course}
-      progress={progress}
-      me={me}
-    />
-  );
 }

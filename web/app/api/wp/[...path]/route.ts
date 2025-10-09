@@ -1,5 +1,5 @@
+ import { NextRequest, NextResponse } from 'next/server';
 import { Buffer } from 'node:buffer';
-import { NextRequest, NextResponse } from 'next/server';
 
 function normInt(value: string | null | undefined, fallback: number) {
   const num = Number(value);
@@ -79,7 +79,7 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path?: string[
   outHeaders.delete('set-cookie');
 
   let bridgeValue: string | null = null;
-  for (let cookie of setCookies) {
+  for (const cookie of setCookies) {
     if (!cookie) continue;
     const trimmed = cookie.trim();
     if (!/wordpress_logged_in_|wordpress_sec_|wp-settings-/i.test(trimmed)) continue;
@@ -118,10 +118,7 @@ async function handler(req: NextRequest, ctx: { params: Promise<{ path?: string[
 }
 
 export {
-  handler as GET,
-  handler as POST,
-  handler as PUT,
-  handler as PATCH,
-  handler as DELETE,
-  handler as OPTIONS,
+  handler as DELETE, handler as GET, handler as OPTIONS, handler as PATCH, handler as POST,
+  handler as PUT
 };
+
