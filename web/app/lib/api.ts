@@ -85,55 +85,64 @@ export async function getCourses(opts?: { page?: number; per_page?: number }) {
     );
 
     const courseIdSet = new Set<number>();
+    const rowsById = new Map<number, any>();
+
     await Promise.all(
       productIds.map(async (pid) => {
         const variants = [
           `/api/wp/wp-json/tva/v1/products/${pid}/courses`,
           `/api/wp/wp-json/tva/v2/products/${pid}/courses`,
         ];
-        const c = await tryTVA(variants, hdr);
-        const rows = c ? asArray(c.data) : [];
-        rows.forEach((r: any) => {
-          const cid = Number(r?.id ?? r?.ID ?? r?.course_id);
-          if (Number.isFinite(cid)) courseIdSet.add(cid);
-        });
-      }),
-    );
+        for (const u of variants) {
+          try {
+            const res = await fetch(await absoluteUrl(u), { cache: 'no-store', headers: hdr });
+            if (!res.ok) continue;
+            const data = await parseJsonStrict(res);
+            const rows: any[] = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+            for (const r of rows) {
+              const cid = Number(
+                r?.wp_post_id ??
+                r?.post_id ??
+                r?.course?.wp_post_id ??
+                r?.course?.post_id ??
+                r?.course_id ??
+                r?.id,
+              );
+              if (!Number.isFinite(cid)) continue;
 
-    const courseIds = Array.from(courseIdSet);
-    const detailed = await Promise.all(
-      courseIds.map(async (cid) => {
-        const variants = [
-          `/api/wp/wp-json/tva-public/v1/courses/${cid}`,
-          `/api/wp/wp-json/tva/v1/courses/${cid}`,
-        ];
-        const det = await tryTVA(variants, hdr);
-        const c = det?.arr?.[0] ?? det?.data ?? null;
-
-        return c
-          ? {
-              id: cid,
-              title:
-                typeof c.title === 'object'
-                  ? c.title?.rendered ?? ''
-                  : c.title ?? '',
-              slug: c.slug ?? '',
-              thumb: c.cover?.url ?? c.featured_image ?? null,
-              access: 'owned',
-              type: 'tva_course',
+              courseIdSet.add(cid);
+              if (!rowsById.has(cid)) rowsById.set(cid, r);
             }
-          : {
-              id: cid,
-              title: `Curso ${cid}`,
-              slug: '',
-              thumb: null,
-              access: 'owned',
-              type: 'tva_course',
-            };
+            break;
+          } catch {
+            // try next variant
+          }
+        }
       }),
     );
 
-    items = detailed;
+    const itemsFromTVA: any[] = Array.from(courseIdSet).map((cid) => {
+      const r = rowsById.get(cid) || {};
+      const titleRaw = r?.title ?? r?.course?.title ?? `Curso ${cid}`;
+      const title =
+        typeof titleRaw === 'object'
+          ? titleRaw?.rendered ?? ''
+          : String(titleRaw ?? '');
+      const thumb = r?.cover?.url ?? r?.course?.cover?.url ?? r?.featured_image ?? null;
+
+      return {
+        id: cid,
+        title,
+        slug: r?.slug ?? r?.course?.slug ?? '',
+        thumb,
+        access: 'owned',
+        type: 'tva_course',
+      };
+    });
+
+    if (itemsFromTVA.length) {
+      items = itemsFromTVA;
+    }
   }
 
   const total = Number(primaryRes.headers.get('X-WP-Total') ?? items.length);
