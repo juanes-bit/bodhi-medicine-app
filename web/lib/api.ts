@@ -44,12 +44,38 @@ function resolveUrl(path: string) {
 
 export function setNonce(n: string) {
   nonce = n;
-  if (typeof window !== 'undefined') localStorage.setItem('nonce', n);
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('wp_nonce', n);
+    } catch {
+      // ignore storage errors
+    }
+    try {
+      const maxAge = 60 * 60 * 24 * 14; // 14 días ~ 2 semanas
+      document.cookie = `wp_nonce=${encodeURIComponent(n)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+    } catch {
+      // ignore cookie errors
+    }
+  }
 }
 
 export function getNonce() {
   if (nonce) return nonce;
-  if (typeof window !== 'undefined') return localStorage.getItem('nonce') ?? '';
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('wp_nonce');
+    if (stored) {
+      nonce = stored;
+      return stored;
+    }
+    const match = document.cookie.match(/(?:^|;\s*)wp_nonce=([^;]+)/);
+    if (match) {
+      const value = decodeURIComponent(match[1]);
+      localStorage.setItem('wp_nonce', value);
+      nonce = value;
+      return value;
+    }
+    return '';
+  }
   return '';
 }
 
@@ -98,8 +124,5 @@ export async function login(username: string, password: string) {
   const json = await handleJson(res);
   if (!json?.ok || !json?.nonce) throw new Error('Login inválido');
   setNonce(json.nonce);
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('wp_nonce', json.nonce);
-  }
   return json; // { ok, user, nonce }
 }

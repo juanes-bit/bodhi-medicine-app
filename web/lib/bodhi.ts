@@ -1,39 +1,7 @@
 'use client';
 
-export type CourseLesson = {
-  id: number;
-  moduleId?: number;
-  title: string;
-  type?: 'video' | 'form' | 'article';
-  url?: string;
-  order?: number;
-  preview_url?: string;
-};
-
-export type CourseModule = {
-  id: number;
-  title: string;
-  order?: number;
-  cover_image?: string;
-  publish_date?: string;
-  schema?: any[];
-  lessons?: { id: number; title: string }[];
-};
-
-export type CourseDetail = {
-  id: number;
-  title?: string;
-  modules?: CourseModule[];
-  lessons?: CourseLesson[];
-};
-
-export type ProgressRes = {
-  pct: number;
-  total: number;
-  done: number;
-  progress: Record<string, boolean>;
-  course_id: number;
-};
+import { normalizeCourse, normalizeProgress } from '@/app/lib/normalizers';
+import type { CourseDetail, ProgressRes } from '@/app/types/course';
 
 const WP_BASE = '/api/wp';
 
@@ -43,6 +11,7 @@ const getNonce = () =>
 async function bodhiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${WP_BASE}/wp-json/bodhi/v1${path}`, {
     credentials: 'include',
+    cache: init?.cache ?? 'no-store',
     headers: {
       'X-WP-Nonce': getNonce(),
       ...(init?.headers || {}),
@@ -73,11 +42,13 @@ export async function getCourses(): Promise<{
 }
 
 export async function getCourse(id: number): Promise<CourseDetail> {
-  return bodhiFetch(`/courses/${id}`);
+  const raw = await bodhiFetch<any>(`/courses/${id}`);
+  return normalizeCourse(raw);
 }
 
 export async function getProgress(courseId: number): Promise<ProgressRes> {
-  return bodhiFetch(`/progress?course_id=${courseId}`);
+  const raw = await bodhiFetch<any>(`/progress?course_id=${courseId}`);
+  return normalizeProgress(raw, courseId);
 }
 
 export async function setProgress(
@@ -90,5 +61,6 @@ export async function setProgress(
   body.set('lesson_id', String(lessonId));
   if (done) body.set('done', '1');
 
-  return bodhiFetch('/progress', { method: 'POST', body });
+  const raw = await bodhiFetch<any>('/progress', { method: 'POST', body });
+  return normalizeProgress(raw, courseId);
 }
