@@ -26,6 +26,7 @@ const wishListData = [
         courseRating: '5.0',
         courseNumberOfRating: '128',
         coursePrice: '59',
+        courseId: 1,
     },
     {
         key: '2',
@@ -36,6 +37,7 @@ const wishListData = [
         courseRating: '4.9',
         courseNumberOfRating: '95',
         coursePrice: '64',
+        courseId: 2,
     },
     {
         key: '3',
@@ -46,6 +48,7 @@ const wishListData = [
         courseRating: '4.8',
         courseNumberOfRating: '87',
         coursePrice: '59',
+        courseId: 3,
     },
 ];
 
@@ -107,6 +110,7 @@ const WishListScreen = () => {
                                     courseRating: item.courseRating,
                                     courseNumberOfRating: item.courseNumberOfRating,
                                     coursePrice: item.coursePrice,
+                                    courseId: item.courseId,
                                 })}
                                 style={styles.viewButton}
                             >

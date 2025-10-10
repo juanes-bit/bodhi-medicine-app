@@ -179,6 +179,7 @@ const HomeScreen = () => {
                         courseCategory: item.courseCategory,
                         courseRating: item.courseRating,
                         courseNumberOfRating: item.courseNumberOfRating,
+                        courseId: item.courseId,
                     }
                 )}
                 activeOpacity={0.9}
@@ -236,6 +237,7 @@ const HomeScreen = () => {
                         courseRating: item.courseRating,
                         courseNumberOfRating: item.courseNumberOfRating,
                         coursePrice: item.coursePrice,
+                        courseId: item.courseId,
                     }
                 )}
                 style={styles.popularCoursesContainerStyle}>

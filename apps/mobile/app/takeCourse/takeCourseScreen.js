@@ -1,11 +1,13 @@
-import React, { useState } from "react";
-import { Text, View, StyleSheet, Dimensions, Image, TouchableOpacity } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { Text, View, StyleSheet, Dimensions, Image, TouchableOpacity, Alert } from "react-native";
 import { Colors, Fonts, Sizes, CommonStyles } from "../../constant/styles";
 import { MaterialIcons } from '@expo/vector-icons';
 import CollapsingToolbar from "../../component/sliverAppBar";
 import { Modal } from 'react-native-paper';
 import MyStatusBar from "../../component/myStatusBar";
 import { useLocalSearchParams, useNavigation } from "expo-router";
+import { wpPost } from "../_core/wpClient";
+import { useCourseDetail } from "../courseDetail/courseDetailContext";
 
 const { width } = Dimensions.get('screen');
 
@@ -13,7 +15,23 @@ const TakeCourseScreen = () => {
 
     const navigation = useNavigation();
 
-    const { courseName, image } = useLocalSearchParams();
+    const { courseName, image, courseId: courseIdParam } = useLocalSearchParams();
+    const { courseId: contextCourseId, progress, refresh } = useCourseDetail();
+
+    const resolvedCourseId = useMemo(() => {
+        const raw = Array.isArray(courseIdParam) ? courseIdParam[0] : courseIdParam;
+        const parsed = Number(raw);
+        if (Number.isFinite(parsed)) return parsed;
+        return contextCourseId ?? null;
+    }, [courseIdParam, contextCourseId]);
+
+    const nextLessonId = useMemo(() => {
+        if (!progress?.progress) return null;
+        const pendingEntry = Object.entries(progress.progress).find(([, done]) => !done);
+        if (!pendingEntry) return null;
+        const lessonId = Number(pendingEntry[0]);
+        return Number.isFinite(lessonId) ? lessonId : null;
+    }, [progress]);
 
     const [state, setState] = useState({
         paymentMethodDialog: false,
@@ -28,6 +46,35 @@ const TakeCourseScreen = () => {
         currentIndex,
         thanksDialog,
     } = state;
+
+    const handlePayment = useCallback(async () => {
+        updateState({ paymentMethodDialog: false });
+        try {
+            if (resolvedCourseId) {
+                const payload = {
+                    course_id: resolvedCourseId,
+                    completed: true,
+                };
+                if (nextLessonId) {
+                    payload.lesson_id = nextLessonId;
+                }
+                await wpPost("/wp-json/bodhi/v1/progress", payload);
+                if (typeof refresh === "function") {
+                    await refresh();
+                }
+            }
+            updateState({ thanksDialog: true });
+            setTimeout(() => {
+                updateState({ thanksDialog: false })
+                navigation.push('(tabs)');
+            }, 3000);
+        } catch (err) {
+            Alert.alert(
+                "Error",
+                "No pudimos actualizar tu progreso. Intenta nuevamente.",
+            );
+        }
+    }, [resolvedCourseId, nextLessonId, refresh, navigation]);
 
     return (
         <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
@@ -182,13 +229,7 @@ const TakeCourseScreen = () => {
                         </TouchableOpacity>
                         <TouchableOpacity
                             activeOpacity={0.9}
-                            onPress={() => {
-                                updateState({ paymentMethodDialog: false, thanksDialog: true })
-                                setTimeout(() => {
-                                    updateState({ thanksDialog: false })
-                                    navigation.push('(tabs)');
-                                }, 3000);
-                            }}
+                            onPress={handlePayment}
                             style={styles.payButtonStyle}
                         >
                             <Text style={{ ...Fonts.white15Bold }}>Pay</Text>
