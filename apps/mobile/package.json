@@ -1,0 +1,70 @@
+{
+  "name": "bodhi-medicine-front-end-app",
+  "main": "expo-router/entry",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "expo start",
+    "reset-project": "node ./scripts/reset-project.js",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "test": "jest --watchAll",
+    "lint": "expo lint"
+  },
+  "jest": {
+    "preset": "jest-expo"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^14.0.2",
+    "@react-navigation/bottom-tabs": "^7.3.10",
+    "@react-navigation/native": "^7.1.6",
+    "expo": "^53.0.20",
+    "expo-blur": "~14.1.5",
+    "expo-constants": "~17.1.7",
+    "expo-font": "~13.3.2",
+    "expo-haptics": "~14.1.4",
+    "expo-linking": "~7.1.7",
+    "expo-router": "~5.1.4",
+    "expo-splash-screen": "~0.30.10",
+    "expo-status-bar": "~2.2.3",
+    "expo-symbols": "~0.4.5",
+    "expo-system-ui": "~5.0.10",
+    "expo-video": "~2.2.2",
+    "expo-web-browser": "~14.2.0",
+    "prop-types": "^15.8.1",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-native": "0.79.5",
+    "react-native-gesture-handler": "~2.24.0",
+    "react-native-otp-field": "^0.0.11",
+    "react-native-pager-view": "6.7.1",
+    "react-native-paper": "^5.13.1",
+    "react-native-reanimated": "~3.17.4",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.11.1",
+    "react-native-snap-carousel-v4": "^1.0.1",
+    "react-native-swipe-item": "^0.7.0",
+    "react-native-swipe-list-view": "^3.2.9",
+    "react-native-tab-view": "^4.0.5",
+    "react-native-web": "^0.20.0",
+    "react-native-webview": "13.13.5"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@types/jest": "^29.5.12",
+    "@types/react": "~19.0.10",
+    "@types/react-test-renderer": "^18.3.0",
+    "jest": "^29.2.1",
+    "jest-expo": "~53.0.9",
+    "react-test-renderer": "18.3.1",
+    "typescript": "^5.3.3"
+  },
+  "resolutions": {
+    "@react-navigation/bottom-tabs": "7.4.2",
+    "@react-navigation/core": "7.12.4",
+    "@react-navigation/native": "7.1.18",
+    "@react-navigation/routers": "7.5.1"
+  },
+  "private": true,
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
+}
