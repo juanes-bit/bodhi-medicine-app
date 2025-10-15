@@ -1,13 +1,14 @@
 import React, { useState, useCallback } from "react";
-import { Text, View, TextInput, StyleSheet, TouchableOpacity, BackHandler, Platform } from "react-native";
+import { Text, View, TextInput, StyleSheet, TouchableOpacity, BackHandler, Alert } from "react-native";
 import CollapsingToolbar from "../../component/sliverAppBar";
 import { Fonts, Sizes, Colors } from "../../constant/styles";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import MyStatusBar from "../../component/myStatusBar";
 import { useNavigation } from "expo-router";
+import { wpLogin, wpFetch } from "../../src/_core/wp";
 
-const SigninScreen = () => {
+function SigninScreen() {
 
     const navigation = useNavigation();
 
@@ -37,6 +38,9 @@ const SigninScreen = () => {
         passwordFocus: false,
         usernameFocus: false,
         backClickCount: 0,
+        username: "",
+        password: "",
+        submitting: false,
     })
 
     const updateState = (data) => setState((state) => ({ ...state, ...data }))
@@ -46,7 +50,34 @@ const SigninScreen = () => {
         passwordFocus,
         usernameFocus,
         backClickCount,
+        username,
+        password,
+        submitting,
     } = state;
+
+    const handleSignin = async () => {
+        if (!username || !password) {
+            Alert.alert("Bodhi Medicine", "Ingresa tu correo y contraseña.");
+            return;
+        }
+        updateState({ submitting: true });
+        try {
+            await wpLogin(username, password);
+            try {
+                const meRes = await wpFetch("/wp-json/wp/v2/users/me", { method: "GET" });
+                const profile = await meRes.json();
+                console.log("[me data]", profile);
+            } catch (meError) {
+                console.log("[me error]", meError);
+            }
+            navigation.replace("(tabs)");
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Login falló";
+            Alert.alert("Bodhi Medicine", message);
+        } finally {
+            updateState({ submitting: false });
+        }
+    };
 
     return (
         <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
@@ -93,10 +124,11 @@ const SigninScreen = () => {
         return (
             <TouchableOpacity
                 activeOpacity={0.9}
-                onPress={() => navigation.push('auth/verificationScreen')}
-                style={styles.signinButtonStyle}
+                onPress={handleSignin}
+                disabled={submitting}
+                style={[styles.signinButtonStyle, submitting && { opacity: 0.6 }]}
             >
-                <Text style={{ ...Fonts.white19Bold }}>Entrar</Text>
+                <Text style={{ ...Fonts.white19Bold }}>{submitting ? "Ingresando..." : "Entrar"}</Text>
             </TouchableOpacity>
         )
     }
@@ -109,6 +141,8 @@ const SigninScreen = () => {
                         placeholder="Contraseña"
                         placeholderTextColor={Colors.grayColor}
                         style={{padding:0, ...Fonts.black17Regular, flex: 1 }}
+                        value={password}
+                        onChangeText={(text) => updateState({ password: text })}
                         onFocus={() => updateState({ passwordFocus: true })}
                         onBlur={() => updateState({ passwordFocus: false })}
                         cursorColor={Colors.primaryColor}
@@ -138,6 +172,8 @@ const SigninScreen = () => {
                     placeholder="Correo electrónico"
                     placeholderTextColor={Colors.grayColor}
                     style={{padding:0, ...Fonts.black17Regular, flex: 1 }}
+                    value={username}
+                    onChangeText={(text) => updateState({ username: text })}
                     onFocus={() => updateState({ usernameFocus: true })}
                     onBlur={() => updateState({ usernameFocus: false })}
                     cursorColor={Colors.primaryColor}
