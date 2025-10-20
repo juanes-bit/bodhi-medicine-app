@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import api from "../api/client";
+import api, { WP_API_PREFIX } from "../api/client";
 
 async function fetchCourseDetail(id) {
-  const res = await api.get(`/courses/${id}?lang=es`);
+  const res = await api.get(`${WP_API_PREFIX}/courses/${id}?lang=es`);
   return res.data;
 }
 

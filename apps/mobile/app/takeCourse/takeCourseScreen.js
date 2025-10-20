@@ -6,7 +6,7 @@ import CollapsingToolbar from "../../component/sliverAppBar";
 import { Modal } from 'react-native-paper';
 import MyStatusBar from "../../component/myStatusBar";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import { wpPost } from "../_core/wpClient";
+import { setProgress as markProgress, getProgress } from "../../src/_core/bodhi";
 import { useCourseDetail } from "../courseDetail/courseDetailContext";
 
 const { width } = Dimensions.get('screen');
@@ -16,7 +16,7 @@ const TakeCourseScreen = () => {
     const navigation = useNavigation();
 
     const { courseName, image, courseId: courseIdParam } = useLocalSearchParams();
-    const { courseId: contextCourseId, progress, refresh } = useCourseDetail();
+    const { courseId: contextCourseId, progress, refresh, setProgressState } = useCourseDetail();
 
     const resolvedCourseId = useMemo(() => {
         const raw = Array.isArray(courseIdParam) ? courseIdParam[0] : courseIdParam;
@@ -47,34 +47,34 @@ const TakeCourseScreen = () => {
         thanksDialog,
     } = state;
 
-    const handlePayment = useCallback(async () => {
+    const handleMarkCompleted = useCallback(async () => {
         updateState({ paymentMethodDialog: false });
         try {
-            if (resolvedCourseId) {
-                const payload = {
-                    course_id: resolvedCourseId,
-                    completed: true,
-                };
-                if (nextLessonId) {
-                    payload.lesson_id = nextLessonId;
-                }
-                await wpPost("/wp-json/bodhi/v1/progress", payload);
-                if (typeof refresh === "function") {
-                    await refresh();
-                }
+            if (!resolvedCourseId) {
+                throw new Error("Curso no válido");
+            }
+            await markProgress(resolvedCourseId, nextLessonId ?? undefined, true);
+            const latest = await getProgress(resolvedCourseId);
+            if (typeof setProgressState === "function") {
+                setProgressState(latest);
+            }
+            if (typeof refresh === "function") {
+                await refresh();
             }
             updateState({ thanksDialog: true });
             setTimeout(() => {
-                updateState({ thanksDialog: false })
-                navigation.push('(tabs)');
+                updateState({ thanksDialog: false });
+                navigation.push("(tabs)");
             }, 3000);
         } catch (err) {
             Alert.alert(
                 "Error",
-                "No pudimos actualizar tu progreso. Intenta nuevamente.",
+                err instanceof Error
+                    ? err.message
+                    : "No pudimos actualizar tu progreso. Intenta nuevamente.",
             );
         }
-    }, [resolvedCourseId, nextLessonId, refresh, navigation]);
+    }, [resolvedCourseId, nextLessonId, refresh, navigation, setProgressState]);
 
     return (
         <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
@@ -229,7 +229,7 @@ const TakeCourseScreen = () => {
                         </TouchableOpacity>
                         <TouchableOpacity
                             activeOpacity={0.9}
-                            onPress={handlePayment}
+                            onPress={handleMarkCompleted}
                             style={styles.payButtonStyle}
                         >
                             <Text style={{ ...Fonts.white15Bold }}>Pay</Text>

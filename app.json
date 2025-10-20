@@ -10,7 +10,8 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "10000"
+      "buildNumber": "10000",
+      "bundleIdentifier": "com.anonymous.bodhi-medicine-app"
     },
     "android": {
       "adaptiveIcon": {

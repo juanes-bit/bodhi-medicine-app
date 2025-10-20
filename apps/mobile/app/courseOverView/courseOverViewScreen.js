@@ -1,144 +1,162 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ImageBackground, Text, View, FlatList, ScrollView, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  ImageBackground,
+  Text,
+  View,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 import { Fonts, Sizes } from "../../constant/styles";
-import { MaterialIcons } from '@expo/vector-icons';
-import { wpGet } from "../_core/wpClient";
+import { MaterialIcons } from "@expo/vector-icons";
+import { listMyCourses, adaptCourseCard } from "../../src/_core/bodhi";
+import { useRouter } from "expo-router";
 import { useCourseDetail } from "../courseDetail/courseDetailContext";
 
 const CourseOverViewScreen = () => {
-    const { courseId, detail, progress } = useCourseDetail();
-    const [courses, setCourses] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+  const { courseId, detail, progress } = useCourseDetail();
+  const router = useRouter();
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-    useEffect(() => {
-        let isActive = true;
-        async function loadCourses() {
-            setLoading(true);
-            setError(null);
-            try {
-                const response = await wpGet("/wp-json/bodhi/v1/courses");
-                if (!isActive) return;
-                const items = Array.isArray(response)
-                    ? response
-                    : Array.isArray(response?.items)
-                        ? response.items
-                        : [];
-                setCourses(items);
-            } catch (err) {
-                if (isActive) {
-                    setError(err);
-                }
-            } finally {
-                if (isActive) {
-                    setLoading(false);
-                }
-            }
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const items = await listMyCourses();
+        if (!cancelled) {
+          setCourses(items.map((item, index) => adaptCourseCard(item, index)));
         }
-        loadCourses();
-        return () => {
-            isActive = false;
-        };
-    }, []);
-
-    const modules = useMemo(() => {
-        if (Array.isArray(detail?.modules) && detail.modules.length) {
-            return detail.modules.map((module, idx) => ({
-                id: String(module.id || idx),
-                title: module.title || `Módulo ${idx + 1}`,
-                schema: module.schema,
-            }));
+      } catch (err) {
+        if (cancelled) return;
+        if (err?.status === 401) {
+          router.replace("/auth/signinScreen");
+        } else {
+          setError(String(err?.message || err));
         }
-        return [];
-    }, [detail]);
-
-    const learnData = useMemo(() => {
-        if (modules.length) {
-            return modules.map((module) => ({
-                id: module.id,
-                title: module.title,
-            }));
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
         }
-        if (courses.length) {
-            return courses.slice(0, 4).map((course) => ({
-                id: String(course.id ?? course.slug ?? course.title ?? Math.random()),
-                title: course.title ?? course.name ?? "Curso Bodhi",
-            }));
-        }
-        return [
-            { id: "1", title: "Explora el curso completo" },
-            { id: "2", title: "Recursos prácticos" },
-            { id: "3", title: "Clases en video" },
-            { id: "4", title: "Material descargable" },
-        ];
-    }, [modules, courses]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
-    const progressSummary = useMemo(() => {
-        if (!progress) return null;
-        const pct = progress?.pct ?? 0;
-        const total = progress?.total ?? 0;
-        const done = progress?.done ?? 0;
-        return { pct, total, done };
-    }, [progress]);
+  const modules = useMemo(() => {
+    if (Array.isArray(detail?.modules) && detail.modules.length) {
+      return detail.modules.map((module, idx) => ({
+        id: String(module.id || idx),
+        title: module.title || `Módulo ${idx + 1}`,
+        schema: module.schema,
+      }));
+    }
+    return [];
+  }, [detail]);
 
-    return (
-        <View style={styles.container}>
-            <ScrollView
-                nestedScrollEnabled={true}
-                showsVerticalScrollIndicator={false}
-            >
-                {courseSummary()}
-                {divider()}
-                {title({ title: 'Resumen de tu progreso' })}
-                {progressSummary ? progressInfo(progressSummary) : null}
-                {divider()}
-                {title({ title: 'Qué obtendrás' })}
-                {getFromCourseInfo({
-                    iconName: "menu",
-                    availability: `${modules.length || learnData.length} lecciones en video`
-                })}
-                {getFromCourseInfo({
-                    iconName: 'star-border',
-                    availability: 'Materiales de aprendizaje exclusivos'
-                })}
-                {getFromCourseInfo({
-                    iconName: "check",
-                    availability: 'Acceso garantizado mientras mantengas tu membresía'
-                })}
-                {divider()}
-                {title({ title: 'Lo que aprenderás' })}
-                {loading ? <ActivityIndicator color="#444" style={{ marginVertical: Sizes.fixPadding }} /> : learnFromCourse(learnData)}
-                {error ? <Text style={{ ...Fonts.gray16Regular, marginTop: Sizes.fixPadding }}>{String(error.message || error)}</Text> : null}
-            </ScrollView>
+  const learnData = useMemo(() => {
+    if (modules.length) {
+      return modules.map((module) => ({
+        id: module.id,
+        title: module.title,
+      }));
+    }
+    if (courses.length) {
+      return courses.slice(0, 4).map((course) => ({
+        id: String(
+          course.courseId ?? course.id ?? course.slug ?? course.courseName ?? Math.random(),
+        ),
+        title: course.courseCategory ?? course.courseName ?? "Curso Bodhi",
+      }));
+    }
+    return [
+      { id: "1", title: "Explora el curso completo" },
+      { id: "2", title: "Recursos prácticos" },
+      { id: "3", title: "Clases en video" },
+      { id: "4", title: "Material descargable" },
+    ];
+  }, [modules, courses]);
+
+  const progressSummary = useMemo(() => {
+    if (!progress) return null;
+    const pct = progress?.pct ?? 0;
+    const total = progress?.total ?? 0;
+    const done = progress?.done ?? 0;
+    return { pct, total, done };
+  }, [progress]);
+
+  return (
+    <View style={styles.container}>
+      <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
+        {courseSummary()}
+        {divider()}
+        {title({ title: "Resumen de tu progreso" })}
+        {progressSummary ? progressInfo(progressSummary) : null}
+        {divider()}
+        {title({ title: "Qué obtendrás" })}
+        {getFromCourseInfo({
+          iconName: "menu",
+          availability: `${modules.length || learnData.length} lecciones en video`,
+        })}
+        {getFromCourseInfo({
+          iconName: "star-border",
+          availability: "Materiales de aprendizaje exclusivos",
+        })}
+        {getFromCourseInfo({
+          iconName: "check",
+          availability: "Acceso garantizado mientras mantengas tu membresía",
+        })}
+        {divider()}
+        {title({ title: "Lo que aprenderás" })}
+        {loading ? (
+          <ActivityIndicator
+            color="#444"
+            style={{ marginVertical: Sizes.fixPadding }}
+          />
+        ) : (
+          learnFromCourse(learnData)
+        )}
+        {error ? (
+          <Text style={{ ...Fonts.gray16Regular, marginTop: Sizes.fixPadding }}>
+            {error}
+          </Text>
+        ) : null}
+      </ScrollView>
+    </View>
+  );
+
+  function learnFromCourse(list) {
+    const renderItem = ({ item }) => (
+      <ImageBackground
+        source={require("../../assets/images/new_course/new_course_1.png")}
+        style={{ height: 190.0, width: 190.0, marginRight: Sizes.fixPadding }}
+        borderRadius={Sizes.fixPadding * 2.0}
+        resizeMode="cover"
+      >
+        <View style={styles.learnFromImageBlurContainerStyle}>
+          <Text style={{ ...Fonts.primaryColor23Bold }}>{item.title}</Text>
         </View>
+      </ImageBackground>
     );
 
-    function learnFromCourse(list) {
-        const renderItem = ({ item }) => (
-            <ImageBackground
-                source={require("../../assets/images/new_course/new_course_1.png")}
-                style={{ height: 190.0, width: 190.0, marginRight: Sizes.fixPadding }}
-                borderRadius={Sizes.fixPadding * 2.0}
-                resizeMode="cover"
-            >
-                <View style={styles.learnFromImageBlurContainerStyle}>
-                    <Text style={{ ...Fonts.primaryColor23Bold }}>
-                        {item.title}
-                    </Text>
-                </View>
-            </ImageBackground>
-        )
-
-        return (
-            <FlatList
-                data={list}
-                keyExtractor={(item) => `${item.id}`}
-                renderItem={renderItem}
-                horizontal
-                contentContainerStyle={{ paddingVertical: Sizes.fixPadding * 2.0, }}
-            />
-        )
-    }
+    return (
+      <FlatList
+        data={list}
+        keyExtractor={(item) => `${item.id}`}
+        renderItem={renderItem}
+        horizontal
+        contentContainerStyle={{
+          paddingVertical: Sizes.fixPadding * 2.0,
+        }}
+      />
+    );
+  }
 
     function getFromCourseInfo({ iconName, availability }) {
         return (

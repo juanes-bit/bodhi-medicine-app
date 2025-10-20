@@ -70,3 +70,5 @@ backups/
 web/.jar
 web/.login.out
 web/.token.out
+jar.txt
+apps/mobile/jar.txt

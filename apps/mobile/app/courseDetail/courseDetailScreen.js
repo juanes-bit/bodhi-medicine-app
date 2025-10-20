@@ -14,7 +14,7 @@ import TabBarScreen from "../../component/tabBarScreen";
 import MyStatusBar from "../../component/myStatusBar";
 import { Snackbar } from "react-native-paper";
 import { useLocalSearchParams, useNavigation } from "expo-router";
-import { wpGet } from "../_core/wpClient";
+import { wpGet } from "../../src/_core/wpClient";
 import { CourseDetailProvider } from "./courseDetailContext";
 
 const { width } = Dimensions.get('screen');
@@ -29,7 +29,7 @@ const CourseDetailScreen = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [detail, setDetail] = useState(null);
-    const [progress, setProgress] = useState(null);
+    const [progress, setProgressState] = useState(null);
 
     const {
         image,
@@ -87,7 +87,7 @@ const CourseDetailScreen = () => {
             }
 
             if (progressResponse.status === "fulfilled") {
-                safeSetState(() => setProgress(progressResponse.value));
+                safeSetState(() => setProgressState(progressResponse.value));
             }
         } catch (err) {
             safeSetState(() =>
@@ -112,6 +112,7 @@ const CourseDetailScreen = () => {
                 loading,
                 error,
                 refresh,
+                setProgressState,
             }}
         >
             <View style={{ flex: 1 }}>
