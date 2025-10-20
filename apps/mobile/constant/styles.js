@@ -1,243 +1,96 @@
+const palette = {
+  white: '#FFFFFF',
+  textPrimary: '#3F3F3F',
+  textSecondary: '#707070',
+  primary: '#B46691',
+  accent: '#6489BF',
+  accentLight: '#C3D2E6',
+  muted: '#F3F3F3',
+};
+
+const fontFamilies = {
+  regular: 'Montserrat_400Regular',
+  medium: 'Montserrat_500Medium',
+  semiBold: 'Montserrat_600SemiBold',
+  bold: 'Montserrat_700Bold',
+};
+
+const makeFont = (color, size, family) => ({
+  color,
+  ...(size ? { fontSize: size } : {}),
+  fontFamily: family,
+});
+
 export const Fonts = {
+  orangeColor14Bold: makeFont(palette.accentLight, 14.0, fontFamilies.bold),
 
-    orangeColor14Bold: {
-        color: '#7192c2',
-        fontSize: 14.0,
-        fontFamily: 'SignikaNegative_Bold',
-    },
+  blackRegular: makeFont(palette.textPrimary, undefined, fontFamilies.regular),
+  black15Regular: makeFont(palette.textPrimary, 15.0, fontFamilies.regular),
+  black17Regular: makeFont(palette.textPrimary, 17.0, fontFamilies.regular),
+  black19Regular: makeFont(palette.textPrimary, 19.0, fontFamilies.regular),
+  black20Regular: makeFont(palette.textPrimary, 20.0, fontFamilies.regular),
 
-    blackRegular: {
-        color: 'black',
-        fontFamily: 'SignikaNegative_Regular'
-    },
+  black15Bold: makeFont(palette.textPrimary, 15.0, fontFamilies.bold),
+  black17Bold: makeFont(palette.textPrimary, 17.0, fontFamilies.bold),
+  black19Bold: makeFont(palette.textPrimary, 19.0, fontFamilies.bold),
+  black20Bold: makeFont(palette.textPrimary, 20.0, fontFamilies.bold),
+  black25Bold: makeFont(palette.textPrimary, 25.0, fontFamilies.bold),
 
-    black15Regular: {
-        color: 'black',
-        fontSize: 15.0,
-        fontFamily: 'SignikaNegative_Regular'
-    },
+  white15Regular: makeFont(palette.white, 15.0, fontFamilies.regular),
+  white60Regular: makeFont(palette.white, 60.0, fontFamilies.regular),
+  white15Bold: makeFont(palette.white, 15.0, fontFamilies.bold),
+  white16Bold: makeFont(palette.white, 16.0, fontFamilies.bold),
+  white19Bold: makeFont(palette.white, 19.0, fontFamilies.bold),
+  white25Bold: makeFont(palette.white, 25.0, fontFamilies.bold),
 
-    black17Regular: {
-        color: 'black',
-        fontSize: 17.0,
-        fontFamily: 'SignikaNegative_Regular'
-    },
+  gray14Regular: makeFont(palette.textSecondary, 14.0, fontFamilies.regular),
+  gray15Regular: makeFont(palette.textSecondary, 15.0, fontFamilies.regular),
+  gray16Regular: makeFont(palette.textSecondary, 16.0, fontFamilies.regular),
+  gray17Regular: makeFont(palette.textSecondary, 17.0, fontFamilies.regular),
+  gray19Regular: makeFont(palette.textSecondary, 19.0, fontFamilies.regular),
 
-    black19Regular: {
-        color: 'black',
-        fontSize: 19.0,
-        fontFamily: 'SignikaNegative_Regular'
-    },
+  gray15Bold: makeFont(palette.textSecondary, 15.0, fontFamilies.bold),
+  gray17Bold: makeFont(palette.textSecondary, 17.0, fontFamilies.bold),
+  gray18Bold: makeFont(palette.textSecondary, 18.0, fontFamilies.bold),
 
-    black20Regular: {
-        color: 'black',
-        fontSize: 20.0,
-        fontFamily: 'SignikaNegative_Regular'
-    },
+  primaryColor23Bold: makeFont(palette.primary, 23.0, fontFamilies.bold),
+  primaryColor25Bold: makeFont(palette.primary, 25.0, fontFamilies.bold),
+  primaryColor28Bold: makeFont(palette.primary, 28.0, fontFamilies.bold),
+  primaryColor16Regular: makeFont(palette.primary, 16.0, fontFamilies.regular),
+  primaryColor15Regular: makeFont(palette.primary, 15.0, fontFamilies.regular),
 
-    black15Bold: {
-        color: 'black',
-        fontSize: 15.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
+  indigoColor16Bold: makeFont(palette.accent, 16.0, fontFamilies.bold),
+  indigoColor18Bold: makeFont(palette.accent, 18.0, fontFamilies.bold),
 
-    black17Bold: {
-        color: 'black',
-        fontSize: 17.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
+  redColor20Bold: makeFont('#F4473A', 20.0, fontFamilies.bold),
 
-    black19Bold: {
-        color: 'black',
-        fontSize: 19.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    black20Bold: {
-        color: 'black',
-        fontSize: 20.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    black25Bold: {
-        color: 'black',
-        fontSize: 25.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    white15Regular: {
-        color: 'white',
-        fontSize: 15.0,
-        fontFamily: 'SignikaNegative_Regular',
-    },
-
-    white60Regular: {
-        color: 'white',
-        fontSize: 60.0,
-        fontFamily: 'SignikaNegative_Regular',
-    },
-
-    white15Bold: {
-        color: 'white',
-        fontSize: 15.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    white16Bold: {
-        color: 'white',
-        fontSize: 16.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    white19Bold: {
-        color: 'white',
-        fontSize: 19.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    white25Bold: {
-        color: 'white',
-        fontSize: 25.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    gray14Regular: {
-        color: 'gray',
-        fontSize: 14.0,
-        fontFamily: 'SignikaNegative_Regular'
-    },
-
-    gray15Regular: {
-        color: 'gray',
-        fontSize: 15.0,
-        fontFamily: 'SignikaNegative_Regular'
-    },
-
-    gray16Regular: {
-        color: 'gray',
-        fontSize: 16.0,
-        fontFamily: 'SignikaNegative_Regular'
-    },
-
-    gray17Regular: {
-        color: 'gray',
-        fontSize: 17.0,
-        fontFamily: 'SignikaNegative_Regular'
-    },
-
-    gray19Regular: {
-        color: 'gray',
-        fontSize: 19.0,
-        fontFamily: 'SignikaNegative_Regular'
-    },
-
-    gray15Bold: {
-        color: 'gray',
-        fontSize: 15.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    gray17Bold: {
-        color: 'gray',
-        fontSize: 17.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    gray18Bold: {
-        color: 'gray',
-        fontSize: 18.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    primaryColor23Bold: {
-        color: '#824F64',
-        fontSize: 23.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    primaryColor25Bold: {
-        color: '#824F64',
-        fontSize: 25.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    primaryColor28Bold: {
-        color: '#824F64',
-        fontSize: 28.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    primaryColor16Regular: {
-        color: '#824F64',
-        fontSize: 16.0,
-        fontFamily: 'SignikaNegative_Regular'
-    },
-
-    primaryColor15Regular: {
-        color: '#824F64',
-        fontSize: 15.0,
-        fontFamily: 'SignikaNegative_Regular'
-    },
-
-    primaryColor16Regular: {
-        color: '#824F64',
-        fontSize: 16.0,
-        fontFamily: 'SignikaNegative_Regular'
-    },
-
-    indigoColor16Bold: {
-        color: '#54598B',
-        fontSize: 16.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    indigoColor18Bold: {
-        color: '#54598B',
-        fontSize: 18.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    redColor20Bold: {
-        color: '#F4473A',
-        fontSize: 20.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    lightGrayColor15Bold: {
-        color: '#C2C2C2',
-        fontSize: 15.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    lightGrayColor17Bold: {
-        color: '#C2C2C2',
-        fontSize: 17.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-
-    lightGrayColor21Bold: {
-        color: '#7192c2',
-        fontSize: 21.0,
-        fontFamily: 'SignikaNegative_Bold'
-    },
-}
+  lightGrayColor15Bold: makeFont(palette.textSecondary, 15.0, fontFamilies.bold),
+  lightGrayColor17Bold: makeFont(palette.textSecondary, 17.0, fontFamilies.bold),
+  lightGrayColor21Bold: makeFont(palette.accentLight, 21.0, fontFamilies.bold),
+};
 
 export const Colors = {
-    primaryColor: '#97165A',
-    blackColor: '#000000',
-    whiteColor: '#FFFFFF',
-    orangeColor: '#97165A',
-    grayColor: '#97165A',
-}
+  primaryColor: palette.primary,
+  primaryLight: palette.accentLight,
+  secondaryColor: palette.accent,
+  accentColor: palette.accent,
+  blackColor: palette.textPrimary,
+  whiteColor: palette.white,
+  grayColor: palette.textSecondary,
+  mutedColor: palette.muted,
+  orangeColor: palette.primary,
+  textPrimary: palette.textPrimary,
+  textSecondary: palette.textSecondary,
+};
 
 export const Sizes = {
-    fixPadding: 10.0,
-}
+  fixPadding: 10.0,
+};
 
 export const CommonStyles = {
-    shadow: {
-        shadowColor: Colors.blackColor,
-        shadowOffset: { x: 1, y: 1 },
-        shadowOpacity: 0.15
-    }
-}
+  shadow: {
+    shadowColor: Colors.blackColor,
+    shadowOffset: { x: 1, y: 1 },
+    shadowOpacity: 0.15,
+  },
+};
