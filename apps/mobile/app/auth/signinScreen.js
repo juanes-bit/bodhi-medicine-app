@@ -102,11 +102,9 @@ function SigninScreen() {
                         <View style={styles.content}>
                             <View style={styles.logoWrapper}>
                                 <Image
-                                    source={require("../../assets/images/icon.png")}
+                                    source={require("../../assets/images/logo-bodhi-white.png")}
                                     style={styles.logoImage}
                                 />
-                                <Text style={styles.brandTitle}>BODHI MEDICINE</Text>
-                                <Text style={styles.brandSubtitle}>YOUR BODY KNOWS</Text>
                             </View>
                             <View style={styles.form}>
                                 {userNameTextField()}
@@ -233,20 +231,10 @@ const styles = StyleSheet.create({
         marginBottom: Sizes.fixPadding * 4,
     },
     logoImage: {
-        width: 96,
-        height: 96,
-        marginBottom: Sizes.fixPadding * 2,
+        width: 220,
+        height: 120,
+        marginBottom: Sizes.fixPadding * 3,
         resizeMode: "contain",
-    },
-    brandTitle: {
-        ...Fonts.white25Bold,
-        letterSpacing: 2,
-    },
-    brandSubtitle: {
-        ...Fonts.white15Regular,
-        opacity: 0.9,
-        letterSpacing: 3,
-        marginTop: Sizes.fixPadding / 2,
     },
     form: {
         width: "100%",
