@@ -99,14 +99,11 @@ const HomeScreen = () => {
     return POPULAR_COURSES_FALLBACK;
   }, [courses]);
 
-  const newCoursesData = useMemo(() => {
-    if (courses.length > 4) {
-      return courses.slice(4, 8);
-    }
+  const acquiredCoursesData = useMemo(() => {
     if (courses.length) {
       return courses;
     }
-    return NEW_COURSES_FALLBACK;
+    return [];
   }, [courses]);
 
   const firstName =
@@ -177,8 +174,8 @@ const HomeScreen = () => {
           {categories()}
           {title({ title: "Cursos Populares" })}
           {popularCourses(popularCoursesData)}
-          {title({ title: "Cursos Nuevos" })}
-          {newCourses(newCoursesData)}
+          {title({ title: "Cursos adquiridos" })}
+          {acquiredCourses(acquiredCoursesData)}
           {title({ title: "Inscríbete" })}
           {instructors()}
         </View>
@@ -318,7 +315,22 @@ const HomeScreen = () => {
     );
   }
 
-  function newCourses(data) {
+  function acquiredCourses(data) {
+    if (!data.length) {
+      return (
+        <View
+          style={{
+            paddingHorizontal: Sizes.fixPadding * 2,
+            paddingVertical: Sizes.fixPadding * 3,
+          }}
+        >
+          <Text style={{ ...Fonts.gray16Regular }}>
+            Aún no tienes cursos adquiridos. Cuando compres uno, aparecerá aquí.
+          </Text>
+        </View>
+      );
+    }
+
     const renderItem = ({ item }) => (
       <TouchableOpacity
         activeOpacity={0.9}
@@ -341,29 +353,30 @@ const HomeScreen = () => {
           style={styles.popularCoursesImageStyle}
         />
         <View style={styles.popularCoursesInformationContainerStyle}>
-          <Text style={{ ...Fonts.gray15Regular }}>{item.courseName}</Text>
           <Text
-            style={{ ...Fonts.black17Bold, marginVertical: Sizes.fixPadding - 5.0 }}
+            style={{ ...Fonts.black17Bold, marginBottom: Sizes.fixPadding - 5.0 }}
+            numberOfLines={2}
           >
             {item.courseCategory}
+          </Text>
+          <Text
+            style={{ ...Fonts.gray15Regular, marginBottom: Sizes.fixPadding - 5.0 }}
+            numberOfLines={2}
+          >
+            {item.courseName}
           </Text>
           <View style={{ backgroundColor: "gray", height: 0.2 }} />
           <View
             style={{ flexDirection: "row", alignItems: "center", marginTop: Sizes.fixPadding - 5.0 }}
           >
             <Text style={{ ...Fonts.black15Bold }}>{item.courseRating}</Text>
-            <MaterialIcons name="star" size={17} color="black" />
+            <MaterialIcons name="star" size={17} color="black" style={{ marginLeft: 4 }} />
             <Text
               style={{ ...Fonts.black15Bold, marginLeft: Sizes.fixPadding - 5.0 }}
             >
               ({item.courseNumberOfRating})
             </Text>
           </View>
-          {item.coursePrice ? (
-            <Text style={{ ...Fonts.black19Bold, marginTop: Sizes.fixPadding }}>
-              ${item.coursePrice}
-            </Text>
-          ) : null}
         </View>
       </TouchableOpacity>
     );
@@ -487,44 +500,6 @@ const POPULAR_COURSES_FALLBACK = [
   },
 ];
 
-const NEW_COURSES_FALLBACK = [
-  {
-    courseId: 1,
-    image: require("../../../assets/images/new_course/new_course_4.png"),
-    courseName: "Masterclass para hombres sobre salud consciente, autonomía y amor propio.",
-    courseCategory: "Bodhi Medicine para Hombres",
-    courseRating: "4.0",
-    courseNumberOfRating: "5",
-    coursePrice: "59",
-  },
-  {
-    courseId: 2,
-    image: require("../../../assets/images/new_course/new_course_2.png"),
-    courseName: "Coherencia corazón-cerebro para equilibrar el sistema nervioso.",
-    courseCategory: "HeartMath",
-    courseRating: "4.5",
-    courseNumberOfRating: "7",
-    coursePrice: "64",
-  },
-  {
-    courseId: 3,
-    image: require("../../../assets/images/new_course/bodhi_medicine_para_mamas.jpeg"),
-    courseName: "Visión integral para cuidar tu salud y la de tu familia en 3 clases.",
-    courseCategory: "Bodhi Medicine para Mamás",
-    courseRating: "4.0",
-    courseNumberOfRating: "4",
-    coursePrice: "49",
-  },
-  {
-    courseId: 4,
-    image: require("../../../assets/images/new_course/menopausia_con_amor.jpeg"),
-    courseName: "Taller de 5 horas para transitar la menopausia con herramientas claras.",
-    courseCategory: "La Menopausia con Amor",
-    courseRating: "4.8",
-    courseNumberOfRating: "9",
-    coursePrice: "59",
-  },
-];
 
 const styles = StyleSheet.create({
   moduleItemContainer: {
