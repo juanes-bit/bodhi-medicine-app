@@ -93,7 +93,7 @@ function SigninScreen() {
         <View style={styles.container}>
             <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
             <ImageBackground
-                source={require("../../assets/images/onboarding/1.jpg")}
+                source={require("../../assets/images/login-background.png")}
                 style={styles.background}
                 resizeMode="cover"
             >
