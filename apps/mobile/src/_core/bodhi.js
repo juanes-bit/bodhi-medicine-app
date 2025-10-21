@@ -1,14 +1,19 @@
 import { wpGet, wpPost } from "./wpClient";
 
 // Lista de cursos del usuario (owned). Estructura: { items: [...] }
-export async function listMyCourses() {
-  const data = await wpGet("/wp-json/bodhi/v1/courses");
-  const items = Array.isArray(data?.items)
-    ? data.items
-    : Array.isArray(data)
-      ? data
-      : [];
-  return items;
+export async function listMyCourses(options = {}) {
+  const { profile, studentId, includeThrive = true } = options || {};
+
+  const [bodhiRaw, thriveRaw] = await Promise.all([
+    wpGet("/wp-json/bodhi/v1/courses"),
+    includeThrive
+      ? resolveThriveCourses(profile, studentId)
+      : Promise.resolve([]),
+  ]);
+
+  const bodhiItems = normalizeCourseList(bodhiRaw);
+  const merged = dedupeCourses([...thriveRaw, ...bodhiItems]);
+  return merged;
 }
 
 // Detalle normalizado: incluye módulos y lecciones
@@ -33,6 +38,81 @@ export async function setProgress(courseId, lessonId, done = true) {
 // (Opcional) Datos de sesión/usuario
 export async function me() {
   return await wpGet("/wp-json/bodhi/v1/me");
+}
+
+async function resolveThriveCourses(profile, studentId) {
+  try {
+    let finalId = studentId ?? extractUserId(profile);
+    if (!finalId) {
+      finalId = extractUserId(await me());
+    }
+    if (!finalId) return [];
+    const data = await wpGet(`/wp-json/tva/v1/customer/${finalId}/courses_data`);
+    return normalizeCourseList(data);
+  } catch (error) {
+    return [];
+  }
+}
+
+function normalizeCourseList(payload) {
+  const candidates = [
+    payload?.items,
+    payload?.courses,
+    payload?.courses_data,
+    payload?.enrolled_courses,
+    payload?.data,
+    payload,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return candidate.map((entry) => entry?.course ?? entry?.course_data ?? entry);
+    }
+  }
+
+  return [];
+}
+
+function extractUserId(source) {
+  if (!source) return null;
+  if (typeof source === "number") return source;
+  if (typeof source === "string" && source.trim()) return Number(source) || null;
+  const user = source?.user ?? source?.data ?? source;
+  return (
+    user?.id ??
+    user?.ID ??
+    user?.user_id ??
+    user?.userId ??
+    null
+  );
+}
+
+function dedupeCourses(list) {
+  const seen = new Set();
+  const result = [];
+
+  for (const raw of list) {
+    const course = raw?.course ?? raw;
+    const key =
+      course?.id ??
+      course?.ID ??
+      course?.course_id ??
+      course?.wp_post_id ??
+      course?.post_id ??
+      course?.slug ??
+      null;
+
+    const normalizedKey = key != null ? String(key) : null;
+    if (normalizedKey && seen.has(normalizedKey)) {
+      continue;
+    }
+    if (normalizedKey) {
+      seen.add(normalizedKey);
+    }
+    result.push(course);
+  }
+
+  return result;
 }
 
 function stripHtml(value) {

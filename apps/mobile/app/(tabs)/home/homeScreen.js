@@ -59,16 +59,19 @@ const HomeScreen = () => {
     (async () => {
       setLoadingCourses(true);
       try {
-        const [profile, items] = await Promise.all([
-          me().catch(() => null),
-          listMyCourses(),
-        ]);
+        const profile = await me().catch(() => null);
         if (cancelled) {
           return;
         }
         if (profile) {
           setUser(profile);
         }
+
+        const items = await listMyCourses({ profile });
+        if (cancelled) {
+          return;
+        }
+
         const adapted = items.map((item, index) =>
           adaptCourseCard(item, index)
         );
