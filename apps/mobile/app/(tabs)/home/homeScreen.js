@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
+  Alert,
 } from "react-native";
 import { Colors, Fonts, Sizes, CommonStyles } from "../../../constant/styles";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -89,19 +90,20 @@ const HomeScreen = () => {
     };
   }, []);
 
+  const ownedCourses = useMemo(() => courses.filter((item) => item?.isOwned), [courses]);
+  const lockedCourses = useMemo(() => courses.filter((item) => !item?.isOwned), [courses]);
+
   const popularCoursesData = useMemo(() => {
-    if (courses.length) {
-      return courses.slice(0, 4);
+    if (lockedCourses.length) {
+      return lockedCourses;
+    }
+    if (ownedCourses.length) {
+      return ownedCourses;
     }
     return POPULAR_COURSES_FALLBACK;
-  }, [courses]);
+  }, [lockedCourses, ownedCourses]);
 
-  const acquiredCoursesData = useMemo(() => {
-    if (courses.length) {
-      return courses;
-    }
-    return [];
-  }, [courses]);
+  const acquiredCoursesData = useMemo(() => ownedCourses, [ownedCourses]);
 
   const firstName =
     typeof user?.name === "string" && user.name.trim()
@@ -250,51 +252,63 @@ const HomeScreen = () => {
   }
 
   function popularCourses(data) {
-    const renderItem = ({ item }) => (
-      <TouchableOpacity
-        onPress={() =>
-          navigation.push("courseDetail/courseDetailScreen", {
-            image: item.image,
-            courseName: item.courseName,
-            courseCategory: item.courseCategory,
-            courseRating: item.courseRating,
-            courseNumberOfRating: item.courseNumberOfRating,
-            courseId: item.courseId,
-          })
+    if (!data.length) {
+      return null;
+    }
+
+    const renderItem = ({ item }) => {
+      const handlePress = () => {
+        if (item?.isOwned === false) {
+          Alert.alert("Bodhi Medicine", "Aún no tienes acceso a este curso.");
+          return;
         }
-        activeOpacity={0.9}
-        style={styles.popularCoursesContainerStyle}
-      >
-        <Image
-          source={item.image}
-          resizeMode="cover"
-          style={styles.popularCoursesImageStyle}
-        />
-        <View style={styles.popularCoursesInformationContainerStyle}>
-          <Text style={{ ...Fonts.gray15Regular }}>{item.courseName}</Text>
-          <Text
-            style={{ ...Fonts.black17Bold, marginVertical: Sizes.fixPadding - 5.0 }}
-          >
-            {item.courseCategory}
-          </Text>
-          <View style={{ backgroundColor: "gray", height: 0.2 }} />
-          <View
-            style={{ flexDirection: "row", alignItems: "center", marginTop: Sizes.fixPadding - 5.0 }}
-          >
-            <Text style={{ ...Fonts.black15Bold }}>
-              {item.courseRating}
-            </Text>
-            <MaterialIcons name="star" size={17} color="black" />
+        navigation.push("courseDetail/courseDetailScreen", {
+          image: item.image,
+          courseName: item.courseName,
+          courseCategory: item.courseCategory,
+          courseRating: item.courseRating,
+          courseNumberOfRating: item.courseNumberOfRating,
+          courseId: item.courseId,
+        });
+      };
+
+      return (
+        <TouchableOpacity
+          onPress={handlePress}
+          activeOpacity={0.9}
+          style={styles.popularCoursesContainerStyle}
+        >
+          <Image
+            source={item.image}
+            resizeMode="cover"
+            style={styles.popularCoursesImageStyle}
+          />
+          <View style={styles.popularCoursesInformationContainerStyle}>
+            <Text style={{ ...Fonts.gray15Regular }}>{item.courseName}</Text>
             <Text
-              style={{ ...Fonts.black15Bold, marginLeft: Sizes.fixPadding - 5.0 }}
+              style={{ ...Fonts.black17Bold, marginVertical: Sizes.fixPadding - 5.0 }}
             >
-              ({item.courseNumberOfRating})
+              {item.courseCategory}
             </Text>
+            <View style={{ backgroundColor: "gray", height: 0.2 }} />
+            <View
+              style={{ flexDirection: "row", alignItems: "center", marginTop: Sizes.fixPadding - 5.0 }}
+            >
+              <Text style={{ ...Fonts.black15Bold }}>
+                {item.courseRating}
+              </Text>
+              <MaterialIcons name="star" size={17} color="black" />
+              <Text
+                style={{ ...Fonts.black15Bold, marginLeft: Sizes.fixPadding - 5.0 }}
+              >
+                ({item.courseNumberOfRating})
+              </Text>
+            </View>
+            <View style={{ marginTop: Sizes.fixPadding }} />
           </View>
-          <View style={{ marginTop: Sizes.fixPadding }} />
-        </View>
-      </TouchableOpacity>
-    );
+        </TouchableOpacity>
+      );
+    };
 
     return (
       <FlatList
@@ -314,69 +328,66 @@ const HomeScreen = () => {
 
   function acquiredCourses(data) {
     if (!data.length) {
-      return (
-        <View
-          style={{
-            paddingHorizontal: Sizes.fixPadding * 2,
-            paddingVertical: Sizes.fixPadding * 3,
-          }}
-        >
-          <Text style={{ ...Fonts.gray16Regular }}>
-            Aún no tienes cursos adquiridos. Cuando compres uno, aparecerá aquí.
-          </Text>
-        </View>
-      );
+      return <EmptyState text="Aún no tienes cursos adquiridos." />;
     }
 
-    const renderItem = ({ item }) => (
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() =>
-          navigation.push("courseDetail/courseDetailScreen", {
-            image: item.image,
-            courseName: item.courseName,
-            courseCategory: item.courseCategory,
-            courseRating: item.courseRating,
-            courseNumberOfRating: item.courseNumberOfRating,
-            coursePrice: item.coursePrice,
-            courseId: item.courseId,
-          })
+    const renderItem = ({ item }) => {
+      const handlePress = () => {
+        if (item?.isOwned === false) {
+          Alert.alert("Bodhi Medicine", "Aún no tienes acceso a este curso.");
+          return;
         }
-        style={styles.popularCoursesContainerStyle}
-      >
-        <Image
-          source={item.image}
-          resizeMode="cover"
-          style={styles.popularCoursesImageStyle}
-        />
-        <View style={styles.popularCoursesInformationContainerStyle}>
-          <Text
-            style={{ ...Fonts.black17Bold, marginBottom: Sizes.fixPadding - 5.0 }}
-            numberOfLines={2}
-          >
-            {item.courseCategory}
-          </Text>
-          <Text
-            style={{ ...Fonts.gray15Regular, marginBottom: Sizes.fixPadding - 5.0 }}
-            numberOfLines={2}
-          >
-            {item.courseName}
-          </Text>
-          <View style={{ backgroundColor: "gray", height: 0.2 }} />
-          <View
-            style={{ flexDirection: "row", alignItems: "center", marginTop: Sizes.fixPadding - 5.0 }}
-          >
-            <Text style={{ ...Fonts.black15Bold }}>{item.courseRating}</Text>
-            <MaterialIcons name="star" size={17} color="black" style={{ marginLeft: 4 }} />
+        navigation.push("courseDetail/courseDetailScreen", {
+          image: item.image,
+          courseName: item.courseName,
+          courseCategory: item.courseCategory,
+          courseRating: item.courseRating,
+          courseNumberOfRating: item.courseNumberOfRating,
+          coursePrice: item.coursePrice,
+          courseId: item.courseId,
+        });
+      };
+
+      return (
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={handlePress}
+          style={styles.popularCoursesContainerStyle}
+        >
+          <Image
+            source={item.image}
+            resizeMode="cover"
+            style={styles.popularCoursesImageStyle}
+          />
+          <View style={styles.popularCoursesInformationContainerStyle}>
             <Text
-              style={{ ...Fonts.black15Bold, marginLeft: Sizes.fixPadding - 5.0 }}
+              style={{ ...Fonts.black17Bold, marginBottom: Sizes.fixPadding - 5.0 }}
+              numberOfLines={2}
             >
-              ({item.courseNumberOfRating})
+              {item.courseCategory}
             </Text>
+            <Text
+              style={{ ...Fonts.gray15Regular, marginBottom: Sizes.fixPadding - 5.0 }}
+              numberOfLines={2}
+            >
+              {item.courseName}
+            </Text>
+            <View style={{ backgroundColor: "gray", height: 0.2 }} />
+            <View
+              style={{ flexDirection: "row", alignItems: "center", marginTop: Sizes.fixPadding - 5.0 }}
+            >
+              <Text style={{ ...Fonts.black15Bold }}>{item.courseRating}</Text>
+              <MaterialIcons name="star" size={17} color="black" style={{ marginLeft: 4 }} />
+              <Text
+                style={{ ...Fonts.black15Bold, marginLeft: Sizes.fixPadding - 5.0 }}
+              >
+                ({item.courseNumberOfRating})
+              </Text>
+            </View>
           </View>
-        </View>
-      </TouchableOpacity>
-    );
+        </TouchableOpacity>
+      );
+    };
 
     return (
       <FlatList
@@ -393,6 +404,18 @@ const HomeScreen = () => {
       />
     );
   }
+
+
+  const EmptyState = ({ text }) => (
+    <View
+      style={{
+        paddingHorizontal: Sizes.fixPadding * 2,
+        paddingVertical: Sizes.fixPadding * 3,
+      }}
+    >
+      <Text style={{ ...Fonts.gray16Regular }}>{text}</Text>
+    </View>
+  );
 
   function instructors() {
     return (
