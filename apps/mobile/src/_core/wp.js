@@ -40,7 +40,7 @@ export async function ensureNonce(force = false) {
     }
   }
 
-  const headers = {};
+  const headers = { Referer: `${BASE}/` };
   const cookie = await buildCookieHeader();
   if (cookie) {
     headers.Cookie = cookie;
@@ -54,7 +54,13 @@ export async function ensureNonce(force = false) {
 
   if (res.status === 401) {
     await AsyncStorage.removeItem(NONCE_KEY);
-    throw new Error('rest-nonce 401');
+    _nonce = null;
+    return null;
+  }
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`rest-nonce ${res.status} ${errText}`);
   }
 
   const data = await res.json().catch(() => ({}));
@@ -133,7 +139,8 @@ export async function wpFetch(path, options = {}) {
   if (needsWPAuth && retry && (response.status === 401 || response.status === 403)) {
     _nonce = null;
     await AsyncStorage.removeItem(NONCE_KEY);
-    return wpFetch(path, { method, headers, body, retry: false });
+    const refreshedHeaders = await headersWithNonce(headers, true);
+    return wpFetch(path, { method, headers: refreshedHeaders, body, retry: false });
   }
 
   return response;
