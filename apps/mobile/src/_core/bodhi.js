@@ -3,6 +3,7 @@ import { wpGet, wpPost } from "./wpClient";
 const COURSES_MODE = "union";
 const PER_PAGE = 50;
 
+// --- helpers tolerantes ---
 const parseId = (value) => {
   if (value == null) return 0;
   if (typeof value === "number") return value | 0;
@@ -17,16 +18,15 @@ const parseId = (value) => {
   return 0;
 };
 
-const normAccess = (access) =>
-  ["owned", "member", "free", "owned_by_product"].includes(String(access || "")?.toLowerCase())
-    ? "owned"
-    : "locked";
+const OWNED_ACCESS = new Set(["owned", "member", "free", "owned_by_product"]);
+const toAccess = (access) =>
+  OWNED_ACCESS.has(String(access ?? "").toLowerCase()) ? "owned" : "locked";
 
 export function adaptCourseCard(course = {}) {
-  const access = normAccess(course.access);
+  const access = toAccess(course.access ?? course.access_status);
   return {
     id: course.id,
-    title: course.title ?? course.name ?? "Curso",
+    title: course.title ?? course.name ?? `Curso #${course.id ?? ""}`,
     image: course.thumb ?? course.thumbnail ?? course.image ?? null,
     percent: typeof course.percent === "number" ? course.percent : 0,
     access,
