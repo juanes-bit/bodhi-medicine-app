@@ -406,16 +406,18 @@ const HomeScreen = () => {
   }
 
 
-  const EmptyState = ({ text }) => (
-    <View
-      style={{
-        paddingHorizontal: Sizes.fixPadding * 2,
-        paddingVertical: Sizes.fixPadding * 3,
-      }}
-    >
-      <Text style={{ ...Fonts.gray16Regular }}>{text}</Text>
-    </View>
-  );
+  function EmptyState({ text }) {
+    return (
+      <View
+        style={{
+          paddingHorizontal: Sizes.fixPadding * 2,
+          paddingVertical: Sizes.fixPadding * 3,
+        }}
+      >
+        <Text style={{ ...Fonts.gray16Regular }}>{text}</Text>
+      </View>
+    );
+  }
 
   function instructors() {
     return (
