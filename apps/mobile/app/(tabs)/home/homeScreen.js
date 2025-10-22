@@ -37,7 +37,7 @@ const HomeScreen = () => {
   const flatListRef = useRef(null);
 
   const [user, setUser] = useState(null);
-  const [courses, setCourses] = useState([]);
+  const [courseCatalog, setCourseCatalog] = useState({ items: [], owned: [] });
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [coursesError, setCoursesError] = useState(null);
 
@@ -73,7 +73,14 @@ const HomeScreen = () => {
           return;
         }
 
-        setCourses(items);
+        const owned = items.filter((item) => item?.isOwned);
+        if (__DEV__) {
+          console.log('[home] courses total=', items.length, 'owned=', owned.length,
+            items.slice(0, 5).map((x) => ({ id: x.id, access: x.access, isOwned: x.isOwned, reason: x._debug_access_reason })),
+          );
+        }
+
+        setCourseCatalog({ items, owned });
         setCoursesError(null);
       } catch (error) {
         if (!cancelled) {
@@ -90,8 +97,8 @@ const HomeScreen = () => {
     };
   }, []);
 
-  const ownedCourses = useMemo(() => courses.filter((item) => item?.isOwned), [courses]);
-  const lockedCourses = useMemo(() => courses.filter((item) => !item?.isOwned), [courses]);
+  
+  
 
   const popularCoursesData = useMemo(() => {
     if (lockedCourses.length) {
@@ -173,8 +180,8 @@ const HomeScreen = () => {
           {categories()}
           {title({ title: "Cursos Populares" })}
           {popularCourses(popularCoursesData)}
-          {title({ title: "Cursos adquiridos" })}
-          {acquiredCourses(acquiredCoursesData)}
+          {title({ title: acquiredSectionTitle })}
+          {acquiredCourses(acquiredSectionItems)}
           {title({ title: "Inscríbete" })}
           {instructors()}
         </View>
@@ -312,7 +319,7 @@ const HomeScreen = () => {
 
     return (
       <FlatList
-        data={data}
+        data={list}
         keyExtractor={(item, index) => `${item.courseId ?? index}`}
         renderItem={renderItem}
         showsHorizontalScrollIndicator={false}
@@ -326,14 +333,14 @@ const HomeScreen = () => {
     );
   }
 
-  function acquiredCourses(data) {
-    if (!data.length) {
+  function acquiredCourses(list) {
+    if (!list.length) {
       return <EmptyState text="Aún no tienes cursos adquiridos." />;
     }
 
     const renderItem = ({ item }) => {
       const handlePress = () => {
-        if (item?.isOwned === false) {
+        if (!item?.isOwned) {
           Alert.alert("Bodhi Medicine", "Aún no tienes acceso a este curso.");
           return;
         }
@@ -360,12 +367,19 @@ const HomeScreen = () => {
             style={styles.popularCoursesImageStyle}
           />
           <View style={styles.popularCoursesInformationContainerStyle}>
-            <Text
-              style={{ ...Fonts.black17Bold, marginBottom: Sizes.fixPadding - 5.0 }}
-              numberOfLines={2}
-            >
-              {item.courseCategory}
-            </Text>
+            <View style={styles.cardHeader}>
+              <Text
+                style={{ ...Fonts.black17Bold, marginBottom: Sizes.fixPadding - 5.0 }}
+                numberOfLines={2}
+              >
+                {item.courseCategory}
+              </Text>
+              {!item.isOwned ? (
+                <View style={styles.lockedBadge}>
+                  <Text style={styles.lockedBadgeText}>Bloqueado</Text>
+                </View>
+              ) : null}
+            </View>
             <Text
               style={{ ...Fonts.gray15Regular, marginBottom: Sizes.fixPadding - 5.0 }}
               numberOfLines={2}
@@ -391,7 +405,7 @@ const HomeScreen = () => {
 
     return (
       <FlatList
-        data={data}
+        data={list}
         keyExtractor={(item, index) => `${item.courseId ?? index}`}
         renderItem={renderItem}
         showsHorizontalScrollIndicator={false}
