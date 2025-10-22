@@ -9,9 +9,9 @@ let _nonce = null;
 async function buildCookieHeader() {
   const all = await CookieManager.get(BASE);
   const pairs = [];
-  for (const [name, cookie] of Object.entries(all || {})) {
+  for (const cookie of Object.values(all || {})) {
     if (cookie?.value) {
-      pairs.push(`${name}=${cookie.value}`);
+      pairs.push(`${cookie.name}=${cookie.value}`);
     }
   }
   return pairs.join('; ');
@@ -19,11 +19,9 @@ async function buildCookieHeader() {
 
 const isWP = (urlOrPath) => {
   try {
-    const url = new URL(urlOrPath, BASE);
-    return url.pathname.startsWith('/wp-json/');
+    return new URL(urlOrPath, BASE).pathname.startsWith('/wp-json/');
   } catch {
-    const path = String(urlOrPath || '');
-    return path.startsWith('/wp-json/');
+    return String(urlOrPath || '').startsWith('/wp-json/');
   }
 };
 
@@ -33,55 +31,40 @@ export async function ensureNonce(force = false) {
   }
 
   if (!force) {
-    const cached = await AsyncStorage.getItem(NONCE_KEY);
-    if (cached) {
-      _nonce = cached;
+    const saved = await AsyncStorage.getItem(NONCE_KEY);
+    if (saved) {
+      _nonce = saved;
       return _nonce;
     }
   }
 
-  const headers = { Referer: `${BASE}/` };
-  const cookie = await buildCookieHeader();
-  if (cookie) {
-    headers.Cookie = cookie;
-  }
-
   const res = await fetch(`${BASE}/wp-json/bm/v1/rest-nonce`, {
     method: 'GET',
-    headers,
+    headers: { Referer: BASE },
     credentials: 'include',
   });
 
   if (res.status === 401) {
-    await AsyncStorage.removeItem(NONCE_KEY);
     _nonce = null;
+    await AsyncStorage.removeItem(NONCE_KEY);
     return null;
   }
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    throw new Error(`rest-nonce ${res.status} ${errText}`);
-  }
+  let payload = {};
+  try {
+    payload = await res.json();
+  } catch {}
 
-  const data = await res.json().catch(() => ({}));
-  const nonce = data?.nonce || data?.data?.nonce || data?.x_wp_nonce || null;
-  if (!nonce) {
-    throw new Error('rest-nonce sin nonce');
+  _nonce = payload?.nonce ?? payload?.data?.nonce ?? payload?.x_wp_nonce ?? null;
+  if (_nonce) {
+    await AsyncStorage.setItem(NONCE_KEY, _nonce);
   }
-
-  _nonce = nonce;
-  await AsyncStorage.setItem(NONCE_KEY, nonce);
   return _nonce;
 }
 
-async function headersWithNonce(headers = {}, force = false) {
-  try {
-    const nonce = await ensureNonce(force);
-    return nonce ? { ...headers, 'X-WP-Nonce': nonce } : headers;
-  } catch (error) {
-    console.warn('[wp] ensureNonce failed', error);
-    return headers;
-  }
+async function headersWithNonce(headers = {}) {
+  const nonce = await ensureNonce();
+  return nonce ? { ...headers, 'X-WP-Nonce': nonce } : headers;
 }
 
 export async function wpLogin(email, password) {
@@ -91,7 +74,7 @@ export async function wpLogin(email, password) {
 
   const res = await fetch(`${BASE}/wp-json/bm/v1/form-login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Referer: `${BASE}/` },
+    headers: { 'Content-Type': 'application/json', Referer: BASE },
     body: JSON.stringify({ email, password }),
     credentials: 'include',
   });
@@ -103,29 +86,28 @@ export async function wpLogin(email, password) {
 
   if (data?.nonce) {
     _nonce = data.nonce;
-    await AsyncStorage.setItem(NONCE_KEY, data.nonce);
+    await AsyncStorage.setItem(NONCE_KEY, _nonce);
   }
 
   return data;
 }
 
-export async function wpFetch(path, options = {}) {
-  const { method = 'GET', headers = {}, body, retry = true } = options;
+export async function wpFetch(path, { method = 'GET', headers = {}, body, retry = true } = {}) {
   const url = path.startsWith('http') ? path : `${BASE}${path}`;
-  const needsWPAuth = isWP(url);
+  const needsWP = isWP(url);
 
-  const cookie = await buildCookieHeader();
+  const cookieHeader = await buildCookieHeader();
   let requestHeaders = {
     'Content-Type': 'application/json',
-    Referer: `${BASE}/`,
-    ...(cookie ? { Cookie: cookie } : {}),
+    Referer: BASE,
+    ...(cookieHeader ? { Cookie: cookieHeader } : {}),
     ...headers,
   };
 
   delete requestHeaders.Authorization;
   delete requestHeaders.authorization;
 
-  if (needsWPAuth) {
+  if (needsWP) {
     requestHeaders = await headersWithNonce(requestHeaders);
   }
 
@@ -136,14 +118,19 @@ export async function wpFetch(path, options = {}) {
     credentials: 'include',
   });
 
-  if (needsWPAuth && retry && (response.status === 401 || response.status === 403)) {
+  if (needsWP && retry && (response.status === 401 || response.status === 403)) {
     _nonce = null;
     await AsyncStorage.removeItem(NONCE_KEY);
-    const refreshedHeaders = await headersWithNonce(headers, true);
-    return wpFetch(path, { method, headers: refreshedHeaders, body, retry: false });
+    await ensureNonce(true);
+    return wpFetch(path, { method, headers, body, retry: false });
   }
 
-  return response;
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
 export const wpGet = (path) => wpFetch(path, { method: 'GET' });
