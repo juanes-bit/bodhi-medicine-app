@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Fonts, Sizes } from "../../constant/styles";
 import { MaterialIcons } from "@expo/vector-icons";
-import { listMyCourses, adaptCourseCard } from "../../src/_core/bodhi";
+import { listMyCourses } from "../../src/_core/bodhi";
 import { useRouter } from "expo-router";
 import { useCourseDetail } from "../courseDetail/courseDetailContext";
 
@@ -27,9 +27,9 @@ const CourseOverViewScreen = () => {
       setLoading(true);
       setError(null);
       try {
-        const items = await listMyCourses();
+        const { items } = await listMyCourses();
         if (!cancelled) {
-          setCourses(items.map((item, index) => adaptCourseCard(item, index)));
+          setCourses(items);
         }
       } catch (err) {
         if (cancelled) return;

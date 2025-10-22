@@ -16,7 +16,14 @@ export async function listMyCourses({ page = 1 } = {}) {
   const query = `?mode=${COURSES_MODE}&per_page=${PER_PAGE}&page=${page}`;
   const res = await wpGet(`/wp-json/bodhi/v1/courses${query}`);
   const rawItems = Array.isArray(res) ? res : Array.isArray(res?.items) ? res.items : [];
-  return rawItems.map((item, index) => adaptCourseCard(item, index));
+  const items = rawItems.map((item, index) => adaptCourseCard(item, index));
+
+  if (__DEV__) {
+    const sample = items.slice(0, 5).map(({ id, access, _debug_access_reason }) => ({ id, access, _debug_access_reason }));
+    console.log('[courses]', items.length, sample);
+  }
+
+  return { items };
 }
 
 // Detalle normalizado: incluye módulos y lecciones
@@ -186,6 +193,8 @@ export function adaptCourseCard(c = {}, fallbackIndex = 0) {
   const percent = typeof rawSource?.percent === "number" ? rawSource.percent : 0;
   const access = normalizeAccess(rawSource?.access);
 
+  const isOwned = access === 'owned';
+
   return {
     id: courseId,
     courseId,
@@ -200,6 +209,7 @@ export function adaptCourseCard(c = {}, fallbackIndex = 0) {
     lessonsCount,
     percent,
     access,
+    isOwned,
     _debug_access_reason: rawSource?.access_reason ?? null,
     raw: rawSource,
   };

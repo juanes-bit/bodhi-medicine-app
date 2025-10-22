@@ -14,7 +14,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import Carousel from "react-native-snap-carousel-v4";
 import CollapsingToolbar from "../../../component/sliverAppBar";
 import { useNavigation } from "expo-router";
-import { listMyCourses, adaptCourseCard, me } from "../../../src/_core/bodhi";
+import { listMyCourses, me } from "../../../src/_core/bodhi";
 
 const width = Dimensions.get("window").width;
 const itemWidth = Math.round(width * 0.7);
@@ -67,15 +67,12 @@ const HomeScreen = () => {
           setUser(profile);
         }
 
-        const items = await listMyCourses({ profile });
+        const { items } = await listMyCourses({ profile });
         if (cancelled) {
           return;
         }
 
-        const adapted = items.map((item, index) =>
-          adaptCourseCard(item, index)
-        );
-        setCourses(adapted);
+        setCourses(items);
         setCoursesError(null);
       } catch (error) {
         if (!cancelled) {
