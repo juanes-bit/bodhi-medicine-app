@@ -15,7 +15,7 @@ async function buildCookieHeader() {
 
 function isWP(path) {
   const url = path.startsWith('http') ? path : `${BASE}${path}`;
-  return url.startsWith(`${BASE}/wp-json/wp/`);
+  return url.startsWith(`${BASE}/wp-json/`);
 }
 
 const NONCE_KEY = 'wp_nonce';
