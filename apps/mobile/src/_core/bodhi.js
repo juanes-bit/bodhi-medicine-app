@@ -19,7 +19,10 @@ export async function listMyCourses({ page = 1 } = {}) {
   const items = rawItems.map((item, index) => adaptCourseCard(item, index));
 
   if (__DEV__) {
-    const sample = items.slice(0, 5).map(({ id, access, _debug_access_reason }) => ({ id, access, _debug_access_reason }));
+    const sample = items
+      .slice(0, 5)
+      .map(({ id, access, isOwned, percent, _debug_access_reason }) => ({ id, access, isOwned, percent, _debug_access_reason }));
+    console.log('[courses res]', res);
     console.log('[courses]', items.length, sample);
   }
 
