@@ -171,10 +171,14 @@ function resolvePrice(raw) {
 
 // Adaptador muy simple a la UI de cards (ajusta si tu card espera otras props)
 export function adaptCourseCard(c = {}, fallbackIndex = 0) {
-  const rawSource = c?.raw ?? c?.course ?? c;
+  const outer = c ?? {};
+  const rawSource = outer.raw ?? outer.course ?? outer;
   const courseId =
     Number(
-      rawSource?.id ??
+      outer.id ??
+        outer.ID ??
+        outer.course_id ??
+        rawSource?.id ??
         rawSource?.ID ??
         rawSource?.course_id ??
         rawSource?.product_id ??
@@ -185,15 +189,25 @@ export function adaptCourseCard(c = {}, fallbackIndex = 0) {
 
   const title = resolveTitle(rawSource);
   const summary = resolveSummary(rawSource, title);
-  const image = resolveImage(rawSource);
+  const image = resolveImage({ ...rawSource, ...outer });
   const rating = resolveRating(rawSource);
   const reviews = resolveReviews(rawSource);
   const price = resolvePrice(rawSource);
-  const lessonsCount = Array.isArray(rawSource?.lessons) ? rawSource.lessons.length : rawSource?.count_lessons ?? 0;
-  const percent = typeof rawSource?.percent === "number" ? rawSource.percent : 0;
-  const access = normalizeAccess(rawSource?.access);
+  const lessonsCount = Array.isArray(rawSource?.lessons)
+    ? rawSource.lessons.length
+    : rawSource?.count_lessons ?? outer?.count_lessons ?? 0;
 
+  const percentCandidate =
+    outer.percent ??
+    outer.progress ??
+    rawSource?.percent ??
+    rawSource?.progress ??
+    0;
+  const percent = typeof percentCandidate === 'number' ? percentCandidate : Number(percentCandidate) || 0;
+
+  const access = normalizeAccess(outer.access ?? rawSource?.access);
   const isOwned = access === 'owned';
+  const debugReason = outer.access_reason ?? rawSource?.access_reason ?? null;
 
   return {
     id: courseId,
@@ -201,7 +215,7 @@ export function adaptCourseCard(c = {}, fallbackIndex = 0) {
     title,
     courseCategory: title,
     courseName: summary,
-    slug: rawSource?.slug ?? rawSource?.permalink_slug ?? null,
+    slug: rawSource?.slug ?? rawSource?.permalink_slug ?? outer?.slug ?? null,
     image,
     courseRating: rating,
     courseNumberOfRating: reviews,
@@ -210,7 +224,7 @@ export function adaptCourseCard(c = {}, fallbackIndex = 0) {
     percent,
     access,
     isOwned,
-    _debug_access_reason: rawSource?.access_reason ?? null,
+    _debug_access_reason: debugReason,
     raw: rawSource,
   };
 }
