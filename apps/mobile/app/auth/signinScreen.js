@@ -74,8 +74,7 @@ function SigninScreen() {
         try {
             await wpLogin(username, password);
             try {
-                const meRes = await wpFetch("/wp-json/wp/v2/users/me", { method: "GET" });
-                const profile = await meRes.json();
+                const profile = await wpFetch("/wp-json/wp/v2/users/me", { method: "GET" });
                 console.log("[me data]", profile);
             } catch (meError) {
                 console.log("[me error]", meError);
