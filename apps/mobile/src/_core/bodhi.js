@@ -1,4 +1,4 @@
-import { wpGet, wpPost, wpGetStoredUserId, wpSetStoredUserId } from "./wpClient";
+import { wpGet, wpPost, wpGetStoredUserId, wpSetStoredUserId, ensureNonce } from "./wpClient";
 
 const OWNED = new Set(["owned", "member", "free", "owned_by_product"]);
 const asOwned = (access) =>
@@ -98,13 +98,15 @@ export async function listMyCourses(options = {}) {
   try {
     const { page = 1, perPage = 50 } = options;
 
-    const unionRes = await wpGet(
-      `/wp-json/bodhi/v1/courses?mode=union&per_page=${perPage}&page=${page}`,
-    );
+    const fetchUnion = async () =>
+      wpGet(`/wp-json/bodhi/v1/courses?mode=union&per_page=${perPage}&page=${page}`);
 
-    if (unionRes && typeof unionRes === "object" && unionRes.code && unionRes.data?.status >= 400) {
+    let unionRes = await fetchUnion();
+    if (unionRes?.code === "rest_cookie_invalid_nonce") {
       if (__DEV__)
         console.log("[courses union-error]", unionRes.code, unionRes.data?.status, unionRes.message);
+      await ensureNonce(true);
+      unionRes = await fetchUnion();
     }
 
     const union =
@@ -115,7 +117,7 @@ export async function listMyCourses(options = {}) {
         : [];
 
     if (Array.isArray(union) && union.length > 0) {
-      const items = Array.isArray(union) ? union.map(adaptCourseCard) : [];
+      const items = union.map(adaptCourseCard);
       if (__DEV__) console.log("[courses union]", items.length);
       return { items };
     }
