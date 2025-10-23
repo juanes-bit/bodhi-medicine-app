@@ -37,7 +37,7 @@ const HomeScreen = () => {
   const flatListRef = useRef(null);
 
   const [user, setUser] = useState(null);
-  const [acquired, setAcquired] = useState({ items: [], owned: [], title: "Cursos adquiridos" });
+  const [catalog, setCatalog] = useState({ all: [], acquired: [], title: 'Cursos adquiridos' });
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [coursesError, setCoursesError] = useState(null);
 
@@ -83,7 +83,7 @@ const HomeScreen = () => {
           );
         }
 
-        setAcquired({ items: acquiredItems, owned, title: acquiredTitle });
+        setCatalog({ all: items, acquired: acquiredItems, title: acquiredTitle });
         setCoursesError(null);
       } catch (error) {
         if (!cancelled) {
@@ -104,16 +104,16 @@ const HomeScreen = () => {
   
 
   const popularCoursesData = useMemo(() => {
-    if (lockedCourses.length) {
-      return lockedCourses;
-    }
-    if (ownedCourses.length) {
-      return ownedCourses;
+    if (catalog.all.length) {
+      const locked = catalog.all.filter((item) => !item.isOwned);
+      if (locked.length) return locked;
+      return catalog.all;
     }
     return POPULAR_COURSES_FALLBACK;
-  }, [lockedCourses, ownedCourses]);
+  }, [catalog.all]);
 
-  const acquiredCoursesData = useMemo(() => ownedCourses, [ownedCourses]);
+  const acquiredSectionItems = catalog.acquired;
+  const acquiredSectionTitle = catalog.title;
 
   const firstName =
     typeof user?.name === "string" && user.name.trim()
@@ -586,6 +586,22 @@ const styles = StyleSheet.create({
     marginLeft: Sizes.fixPadding,
     width: width - 160,
     marginVertical: 3.0,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  lockedBadge: {
+    backgroundColor: '#d9534f',
+    paddingHorizontal: Sizes.fixPadding - 4,
+    paddingVertical: Sizes.fixPadding / 3,
+    borderRadius: Sizes.fixPadding,
+  },
+  lockedBadgeText: {
+    ...Fonts.white15Bold,
+    fontSize: 11,
+    color: Colors.whiteColor,
   },
   subscribeContainer: {
     flexDirection: "row",
