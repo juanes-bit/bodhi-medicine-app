@@ -94,19 +94,15 @@ async function getUidSafe() {
   return null;
 }
 
-export async function listMyCourses({ page = 1, perPage = 50, profile = null } = {}) {
+export async function listMyCourses({ page = 1, perPage = 50 } = {}) {
   const unionRes = await wpGet(
     `/wp-json/bodhi/v1/courses?mode=union&per_page=${perPage}&page=${page}`,
   );
-  const union = Array.isArray(unionRes) ? union : unionRes?.items ?? [];
+  const union = Array.isArray(unionRes) ? unionRes : unionRes?.items ?? [];
 
-  const hasOwnedFromBackend = union.some((entry) =>
-    OWNED.has(String(entry?.access ?? "").toLowerCase()),
-  );
-
-  if (hasOwnedFromBackend) {
+  if (union.length > 0) {
     const items = union.map(adaptCourseCard);
-    if (__DEV__) console.log("[courses union backend]", items.length);
+    if (__DEV__) console.log("[courses union]", items.length);
     return { items };
   }
 
@@ -114,46 +110,58 @@ export async function listMyCourses({ page = 1, perPage = 50, profile = null } =
     `/wp-json/bodhi/v1/courses?mode=strict&per_page=${perPage}&page=${page}`,
   );
   const strict = Array.isArray(strictRes) ? strictRes : strictRes?.items ?? [];
+  let merged = strict.slice();
 
-  let userId = parseId(profile?.id ?? profile?.user_id ?? profile?.user ?? profile);
-  if (userId) {
-    await wpSetStoredUserId(userId);
-  } else {
-    userId = await getUidSafe();
+  let uid = null;
+  try {
+    uid = await getUidSafe();
+  } catch (_) {}
+
+  if (uid) {
+    try {
+      const { idSet, nameById } = await fetchProductCourseIds(uid);
+
+      merged = merged.map((course) =>
+        idSet.has(course?.id)
+          ? {
+              ...course,
+              access: "owned_by_product",
+              access_reason: "product_grant",
+            }
+          : course,
+      );
+
+      const seen = new Set(merged.map((course) => course?.id));
+      idSet.forEach((courseId) => {
+        if (seen.has(courseId)) return;
+        merged.push({
+          id: courseId,
+          title: nameById[courseId] || `Curso #${courseId}`,
+          thumb: null,
+          status: "publish",
+          access: "owned_by_product",
+          access_reason: "product_grant",
+        });
+      });
+    } catch (error) {
+      if (__DEV__) console.log("[courses tva-error]", String(error?.message || error));
+    }
+  } else if (__DEV__) {
+    console.log("[courses fallback:no-uid-safe]");
   }
 
-  if (!userId) {
-    const items = strict.map(adaptCourseCard);
-    if (__DEV__) console.log("[courses fallback:no-uid-safe]", items.length);
-    return { items };
+  if (merged.length === 0 && uid) {
+    try {
+      const { idSet, nameById } = await fetchProductCourseIds(uid);
+      merged = Array.from(idSet).map((courseId) => ({
+        id: courseId,
+        title: nameById[courseId] || `Curso #${courseId}`,
+        access: "owned_by_product",
+        access_reason: "product_grant",
+      }));
+      if (__DEV__) console.log("[courses tva-only]", merged.length);
+    } catch (_) {}
   }
-
-  const { idSet, nameById } = await fetchProductCourseIds(userId);
-
-  const merged = [];
-  const seen = new Set();
-
-  for (const course of strict) {
-    const owned = idSet.has(course?.id);
-    merged.push({
-      ...course,
-      access: owned ? "owned_by_product" : course.access || "locked",
-      access_reason: owned ? "product_grant" : course.access_reason || "thrive_flag",
-    });
-    seen.add(course?.id);
-  }
-
-  idSet.forEach((courseId) => {
-    if (seen.has(courseId)) return;
-    merged.push({
-      id: courseId,
-      title: nameById[courseId] || `Curso #${courseId}`,
-      thumb: null,
-      status: "publish",
-      access: "owned_by_product",
-      access_reason: "product_grant",
-    });
-  });
 
   const items = merged.map(adaptCourseCard);
   if (__DEV__) {
@@ -163,7 +171,7 @@ export async function listMyCourses({ page = 1, perPage = 50, profile = null } =
         id,
         isOwned,
         access,
-        _debug_access_reason,
+        r: _debug_access_reason,
       }));
     console.log("[courses fallback client]", items.length, sample);
   }
