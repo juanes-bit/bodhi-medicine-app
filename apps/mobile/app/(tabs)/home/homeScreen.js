@@ -37,6 +37,8 @@ const HomeScreen = () => {
   const flatListRef = useRef(null);
 
   const [user, setUser] = useState(null);
+  const [items, setItems] = useState([]);
+  const [owned, setOwned] = useState([]);
   const [catalogItems, setCatalogItems] = useState([]);
   const [ownedItems, setOwnedItems] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
@@ -72,17 +74,17 @@ const HomeScreen = () => {
         const res = await listMyCourses({ profile }).catch(() => ({ items: [] }));
         if (cancelled) return;
 
-        const items = Array.isArray(res?.items) ? res.items : [];
-        const owned = items.filter((item) => item?.isOwned);
+        const all = Array.isArray(res?.items) ? res.items : [];
+        const mine = all.filter((item) => item?.isOwned);
 
         if (__DEV__) {
-          console.log('[home] total=', items.length, 'owned=', owned.length,
-            items.slice(0, 5).map((x) => ({ id: x.id, access: x.access, isOwned: x.isOwned, r: x._debug_access_reason })),
+          console.log('[home] total=', all.length, 'owned=', mine.length,
+            all.slice(0, 5).map((x) => ({ id: x.id, access: x.access, isOwned: x.isOwned, r: x._debug_access_reason })),
           );
         }
 
-        setCatalogItems(items);
-        setOwnedItems(owned);
+        setItems(all);
+        setOwned(mine);
         setCoursesError(null);
       } catch (error) {
         if (!cancelled) {
