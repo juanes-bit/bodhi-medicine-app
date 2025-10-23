@@ -105,16 +105,17 @@ const HomeScreen = () => {
   
 
   const popularCoursesData = useMemo(() => {
-    if (acquired.items.length) {
-      const locked = acquired.items.filter((item) => !item.isOwned);
+    if (items.length) {
+      const locked = items.filter((item) => !item.isOwned);
       if (locked.length) return locked;
-      return acquired.items;
+      return items;
     }
     return POPULAR_COURSES_FALLBACK;
-  }, [acquired.items]);
+  }, [items]);
 
-  const acquiredSectionItems = acquired.acquired;
-  const acquiredSectionTitle = acquired.title;
+  const acquired = owned.length > 0 ? owned : items;
+  const acquiredSectionItems = acquired;
+  const acquiredSectionTitle = owned.length > 0 ? "Cursos adquiridos" : "Mis cursos";
 
   const firstName =
     typeof user?.name === "string" && user.name.trim()
@@ -262,8 +263,9 @@ const HomeScreen = () => {
     );
   }
 
-  function popularCourses(data) {
-    if (!data.length) {
+  function popularCourses(list = []) {
+    const arr = Array.isArray(list) ? list : [];
+    if (!arr.length) {
       return null;
     }
 
@@ -323,7 +325,7 @@ const HomeScreen = () => {
 
     return (
       <FlatList
-        data={data}
+        data={arr}
         keyExtractor={(item, index) => `${item.courseId ?? index}`}
         renderItem={renderItem}
         showsHorizontalScrollIndicator={false}
@@ -363,7 +365,7 @@ const HomeScreen = () => {
       return (
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={() => handlePress(item)}
+          onPress={handlePress}
           style={styles.popularCoursesContainerStyle}
         >
           <Image
