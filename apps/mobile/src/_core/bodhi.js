@@ -1,4 +1,4 @@
-import { wpGet, wpPost, ensureNonce } from "./wpClient";
+import { wpGet, ensureNonce } from "./wpClient";
 
 const OWNED = new Set(["owned", "member", "free", "owned_by_product"]);
 const asOwned = (access) =>
@@ -17,30 +17,37 @@ export function adaptCourseCard(course = {}) {
   };
 }
 
-const toArray = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.items)) return payload.items;
-  return [];
-};
+const toArray = (payload) =>
+  Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.items)
+    ? payload.items
+    : [];
 
-export async function listMyCourses({ perPage = 50 } = {}) {
+export async function listMyCourses({ perPage = 50, allowLocked = true } = {}) {
   const url = `/wp-json/bodhi/v1/courses?mode=union&per_page=${perPage}`;
   try {
+    await ensureNonce(true);
     let response = await wpGet(url);
 
     if (response?.code) {
-      if (__DEV__) console.log("[courses union-error]", response.code, response?.data?.status);
+      if (__DEV__)
+        console.log("[courses union-error]", response.code, response?.data?.status, response?.message);
       await ensureNonce(true);
       response = await wpGet(url);
-      if (response?.code) return { items: [] };
+      if (response?.code) return { items: [], total: 0, owned: 0 };
     }
 
-    const items = toArray(response).map(adaptCourseCard);
-    if (__DEV__) console.log("[courses]", items.length);
-    return { items };
+    const all = toArray(response).map(adaptCourseCard);
+    const owned = all.filter((course) => course.isOwned);
+    const items = owned.length > 0 ? owned : allowLocked ? all : [];
+
+    if (__DEV__) console.log("[courses]", { total: all.length, owned: owned.length, show: items.length });
+
+    return { items, total: all.length, owned: owned.length };
   } catch (error) {
     if (__DEV__) console.log("[listMyCourses error]", String(error?.message || error));
-    return { items: [] };
+    return { items: [], total: 0, owned: 0 };
   }
 }
 
