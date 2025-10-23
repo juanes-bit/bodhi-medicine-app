@@ -71,7 +71,7 @@ async function fetchProductCourseIds(userId) {
   return { idSet, nameById };
 }
 
-export async function listMyCourses({ page = 1, perPage = 50 } = {}) {
+export async function listMyCourses({ page = 1, perPage = 50, profile = null } = {}) {
   const unionRes = await wpGet(
     `/wp-json/bodhi/v1/courses?mode=union&per_page=${perPage}&page=${page}`,
   );
@@ -92,17 +92,21 @@ export async function listMyCourses({ page = 1, perPage = 50 } = {}) {
   );
   const strict = Array.isArray(strictRes) ? strictRes : strictRes?.items ?? [];
 
-  const me = await wpGet("/wp-json/bodhi/v1/me");
-  if (me && typeof me === "object" && me.code && me.data?.status >= 400) {
-    const items = strict.map(adaptCourseCard);
-    if (__DEV__) console.log("[courses fallback:me-error]", me.code, me.data?.status, me.message);
-    return { items };
+  let userId = parseId(profile?.id ?? profile?.user_id ?? profile?.user ?? profile);
+
+  if (!userId) {
+    const me = await wpGet("/wp-json/bodhi/v1/me");
+    if (me && typeof me === "object" && me.code && me.data?.status >= 400) {
+      const items = strict.map(adaptCourseCard);
+      if (__DEV__) console.log("[courses fallback:me-error]", me.code, me.data?.status, me.message);
+      return { items };
+    }
+    userId = parseId(me?.id ?? me?.user_id ?? me?.user ?? me);
   }
-  const userId = parseId(me?.id ?? me?.user_id ?? me?.user ?? me);
 
   if (!userId) {
     const items = strict.map(adaptCourseCard);
-    if (__DEV__) console.log("[courses fallback:no-uid]", items.length, me);
+    if (__DEV__) console.log("[courses fallback:no-uid]", items.length);
     return { items };
   }
 
