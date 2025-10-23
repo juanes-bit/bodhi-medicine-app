@@ -94,98 +94,103 @@ async function getUidSafe() {
   return null;
 }
 
-export async function listMyCourses({ page = 1, perPage = 50 } = {}) {
-  const unionRes = await wpGet(
-    `/wp-json/bodhi/v1/courses?mode=union&per_page=${perPage}&page=${page}`,
-  );
-
-  if (unionRes && typeof unionRes === "object" && unionRes.code && unionRes.data?.status >= 400) {
-    if (__DEV__) console.log("[courses union-error]", unionRes.code, unionRes.data?.status, unionRes.message);
-  }
-
-  const union =
-    Array.isArray(unionRes)
-      ? unionRes
-      : Array.isArray(unionRes?.items)
-      ? unionRes.items
-      : [];
-
-  if (Array.isArray(union) && union.length > 0) {
-    const items = union.map(adaptCourseCard);
-    if (__DEV__) console.log("[courses union]", items.length);
-    return { items };
-  }
-
-  const strictRes = await wpGet(
-    `/wp-json/bodhi/v1/courses?mode=strict&per_page=${perPage}&page=${page}`,
-  );
-  const strict = Array.isArray(strictRes) ? strictRes : strictRes?.items ?? [];
-  let merged = strict.slice();
-
-  let uid = null;
+export async function listMyCourses(options = {}) {
   try {
-    uid = await getUidSafe();
-  } catch (_) {}
+    const { page = 1, perPage = 50 } = options;
 
-  if (uid) {
+    const unionRes = await wpGet(
+      `/wp-json/bodhi/v1/courses?mode=union&per_page=${perPage}&page=${page}`,
+    );
+
+    if (unionRes && typeof unionRes === "object" && unionRes.code && unionRes.data?.status >= 400) {
+      if (__DEV__)
+        console.log("[courses union-error]", unionRes.code, unionRes.data?.status, unionRes.message);
+    }
+
+    const union =
+      Array.isArray(unionRes)
+        ? unionRes
+        : Array.isArray(unionRes?.items)
+        ? unionRes.items
+        : [];
+
+    if (Array.isArray(union) && union.length > 0) {
+      const items = union.map(adaptCourseCard);
+      if (__DEV__) console.log("[courses union]", items.length);
+      return { items };
+    }
+
+    const strictRes = await wpGet(
+      `/wp-json/bodhi/v1/courses?mode=strict&per_page=${perPage}&page=${page}`,
+    );
+    const strict = Array.isArray(strictRes) ? strictRes : strictRes?.items ?? [];
+    let merged = strict.slice();
+
+    let uid = null;
     try {
-      const { idSet, nameById } = await fetchProductCourseIds(uid);
+      uid = await getUidSafe();
+    } catch (_) {}
 
-      merged = merged.map((course) =>
-        idSet.has(course?.id)
-          ? {
-              ...course,
-              access: "owned_by_product",
-              access_reason: "product_grant",
-            }
-          : course,
-      );
+    if (uid) {
+      try {
+        const { idSet, nameById } = await fetchProductCourseIds(uid);
 
-      const seen = new Set(merged.map((course) => course?.id));
-      idSet.forEach((courseId) => {
-        if (seen.has(courseId)) return;
-        merged.push({
+        merged = merged.map((course) =>
+          idSet.has(course?.id)
+            ? {
+                ...course,
+                access: "owned_by_product",
+                access_reason: "product_grant",
+              }
+            : course,
+        );
+
+        const seen = new Set(merged.map((course) => course?.id));
+        idSet.forEach((courseId) => {
+          if (seen.has(courseId)) return;
+          merged.push({
+            id: courseId,
+            title: nameById[courseId] || `Curso #${courseId}`,
+            thumb: null,
+            status: "publish",
+            access: "owned_by_product",
+            access_reason: "product_grant",
+          });
+        });
+      } catch (error) {
+        if (__DEV__) console.log("[courses tva-error]", String(error?.message || error));
+      }
+    } else if (__DEV__) {
+      console.log("[courses fallback:no-uid-safe]");
+    }
+
+    if (merged.length === 0 && uid) {
+      try {
+        const { idSet, nameById } = await fetchProductCourseIds(uid);
+        merged = Array.from(idSet).map((courseId) => ({
           id: courseId,
           title: nameById[courseId] || `Curso #${courseId}`,
-          thumb: null,
-          status: "publish",
           access: "owned_by_product",
           access_reason: "product_grant",
-        });
-      });
-    } catch (error) {
-      if (__DEV__) console.log("[courses tva-error]", String(error?.message || error));
+        }));
+        if (__DEV__) console.log("[courses tva-only]", merged.length);
+      } catch (_) {}
     }
-  } else if (__DEV__) {
-    console.log("[courses fallback:no-uid-safe]");
-  }
 
-  if (merged.length === 0 && uid) {
-    try {
-      const { idSet, nameById } = await fetchProductCourseIds(uid);
-      merged = Array.from(idSet).map((courseId) => ({
-        id: courseId,
-        title: nameById[courseId] || `Curso #${courseId}`,
-        access: "owned_by_product",
-        access_reason: "product_grant",
-      }));
-      if (__DEV__) console.log("[courses tva-only]", merged.length);
-    } catch (_) {}
-  }
-
-  const items = merged.map(adaptCourseCard);
-  if (__DEV__) {
-    const sample = items
-      .slice(0, 6)
-      .map(({ id, isOwned, access, _debug_access_reason }) => ({
+    const items = Array.isArray(merged) ? merged.map(adaptCourseCard) : [];
+    if (__DEV__) {
+      const sample = items.slice(0, 6).map(({ id, access, isOwned }) => ({
         id,
-        isOwned,
         access,
-        r: _debug_access_reason,
+        isOwned,
       }));
-    console.log("[courses fallback client]", items.length, sample);
+      console.log("[courses fallback client]", items.length, sample);
+    }
+    return { items };
+  } catch (error) {
+    if (__DEV__) console.log("[listMyCourses error]", String(error?.message || error));
+    return { items: [] };
   }
-  return { items };
 }
 
 export async function getCourse(courseId) {
