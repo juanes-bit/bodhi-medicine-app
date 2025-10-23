@@ -37,9 +37,9 @@ const HomeScreen = () => {
   const flatListRef = useRef(null);
 
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [owned, setOwned] = useState([]);
-  const [loadingCourses, setLoadingCourses] = useState(false);
   const [coursesError, setCoursesError] = useState(null);
 
   useEffect(() => {
@@ -59,7 +59,6 @@ const HomeScreen = () => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoadingCourses(true);
       try {
         const profile = await me().catch(() => null);
         if (cancelled) {
@@ -83,14 +82,13 @@ const HomeScreen = () => {
 
         setItems(all);
         setOwned(mine);
-        setCoursesError(null);
       } catch (error) {
         if (!cancelled) {
           setCoursesError(String(error?.message || error));
         }
       } finally {
         if (!cancelled) {
-          setLoadingCourses(false);
+          setLoading(false);
         }
       }
     })();
@@ -143,11 +141,11 @@ const HomeScreen = () => {
               <Text style={{ ...Fonts.black25Bold, color: Colors.whiteColor }}>
                 {firstName ? `Hola, ${firstName}` : "Inicio"}
               </Text>
-              {loadingCourses ? (
-                <Text style={{ ...Fonts.white15Regular, marginTop: 4 }}>
-                  Cargando tus cursos...
-                </Text>
-              ) : null}
+      {loading ? (
+        <Text style={{ ...Fonts.white15Regular, marginTop: 4 }}>
+          Cargando tus cursos...
+        </Text>
+      ) : null}
               {coursesError ? (
                 <Text style={{ ...Fonts.white15Regular, marginTop: 4 }}>
                   {coursesError}
