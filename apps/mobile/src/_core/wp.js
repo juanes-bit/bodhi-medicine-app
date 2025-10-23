@@ -86,45 +86,49 @@ export async function wpLogin(email, password) {
   return data;
 }
 
-export async function wpFetch(path, opts = {}, retry = 0) {
+export async function wpFetch(path, opts = {}) {
   const url = toURL(path);
-  const headers = { ...(opts.headers || {}) };
-  const method = opts.method ?? 'GET';
-  const body = opts.body;
-  const needsNonce = isWP(url);
 
-  const cookieHeader = await buildCookieHeader();
-  if (cookieHeader) headers.Cookie = cookieHeader;
-  if (!headers.Referer) headers.Referer = BASE;
+  const doFetch = async () => {
+    const headers = { ...(opts.headers || {}) };
+    const method = opts.method ?? 'GET';
+    const body = opts.body;
+    const needsNonce = isWP(url);
 
-  delete headers.Authorization;
-  delete headers.authorization;
+    const cookieHeader = await buildCookieHeader();
+    if (cookieHeader) headers.Cookie = cookieHeader;
+    if (!headers.Referer) headers.Referer = BASE;
 
-  if (needsNonce) {
-    if (!_nonce) _nonce = await AsyncStorage.getItem(NONCE_KEY);
-    if (!_nonce) await ensureNonce();
-    if (_nonce) headers['X-WP-Nonce'] = _nonce;
-  }
+    delete headers.Authorization;
+    delete headers.authorization;
 
-  const response = await fetch(url, {
-    ...opts,
-    method,
-    headers,
-    body,
-    credentials: 'include',
-  });
-
-  if (needsNonce && (response.status === 401 || response.status === 403) && retry === 0) {
-    let payload = null;
-    try {
-      payload = await response.clone().json();
-    } catch {}
-    const code = payload?.code;
-    if (code === 'rest_cookie_invalid_nonce' || code === 'rest_forbidden') {
-      if (__DEV__) console.log('[wpFetch] nonce inválido → refresh');
-      await ensureNonce(true);
-      return wpFetch(path, opts, 1);
+    if (needsNonce) {
+      if (!_nonce) _nonce = await AsyncStorage.getItem(NONCE_KEY);
+      if (!_nonce) await ensureNonce();
+      if (_nonce) headers['X-WP-Nonce'] = _nonce;
     }
+
+    return fetch(url, {
+      ...opts,
+      method,
+      headers,
+      body,
+      credentials: 'include',
+    });
+  };
+
+  let response = await doFetch();
+
+  if ((response.status === 401 || response.status === 403) && isWP(url)) {
+    try {
+      const payload = await response.clone().json().catch(() => ({}));
+      const code = payload?.code;
+      if (code === 'rest_cookie_invalid_nonce' || code === 'rest_forbidden') {
+        if (__DEV__) console.log('[wpFetch] nonce inválido → refresh');
+        await ensureNonce(true);
+        response = await doFetch();
+      }
+    } catch (_) {}
   }
 
   if (opts.raw) return response;
