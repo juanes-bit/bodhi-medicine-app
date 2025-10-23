@@ -28,12 +28,24 @@ const isWP = (value = '') => {
   }
 };
 
+const withNonceQuery = (rawUrl, nonce) => {
+  try {
+    const url = new URL(rawUrl);
+    if (nonce && !url.searchParams.has('_wpnonce')) {
+      url.searchParams.set('_wpnonce', nonce);
+    }
+    return url.toString();
+  } catch {
+    return rawUrl;
+  }
+};
+
 const toURL = (path) => (path.startsWith('http') ? path : `${BASE}${path}`);
 
 export async function ensureNonce(force = false) {
   if (!force && _nonce) return _nonce;
 
-  if (!force) {
+  if (!force && !_nonce) {
     const saved = await AsyncStorage.getItem(NONCE_KEY);
     if (saved) {
       _nonce = saved;
@@ -41,19 +53,28 @@ export async function ensureNonce(force = false) {
     }
   }
 
-  try {
-    const res = await fetch(`${BASE}/wp-json/bm/v1/rest-nonce`, {
-      headers: { Referer: BASE },
-      credentials: 'include',
-    });
+  const endpoints = [
+    "/wp-json/bm/v1/rest-nonce",
+    "/wp-json/bodhi/v1/rest-nonce",
+    "/wp-json/wp/v1/rest-nonce",
+  ];
 
-    if (res.ok) {
-      const payload = await res.json().catch(() => ({}));
-      _nonce = payload?.nonce ?? null;
-      if (_nonce) await AsyncStorage.setItem(NONCE_KEY, _nonce);
-      return _nonce;
-    }
-  } catch {}
+  for (const ep of endpoints) {
+    try {
+      const res = await fetch(`${BASE}${ep}`, {
+        headers: { Referer: BASE },
+        credentials: "include",
+      });
+      if (!res.ok) continue;
+      const data = await res.json().catch(() => ({}));
+      const n = data?.nonce ?? data?._wp_nonce ?? data?.x_wp_nonce ?? null;
+      if (n) {
+        _nonce = n;
+        await AsyncStorage.setItem(NONCE_KEY, _nonce);
+        return _nonce;
+      }
+    } catch {}
+  }
 
   _nonce = null;
   return null;
@@ -111,7 +132,9 @@ export async function wpFetch(path, opts = {}) {
       headers['X-Requested-With'] = headers['X-Requested-With'] || 'XMLHttpRequest';
     }
 
-    return fetch(url, {
+    const finalUrl = needsNonce && _nonce ? withNonceQuery(url, _nonce) : url;
+
+    return fetch(finalUrl, {
       ...opts,
       method,
       headers,
