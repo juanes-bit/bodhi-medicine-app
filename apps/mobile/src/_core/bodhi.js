@@ -98,9 +98,19 @@ export async function listMyCourses({ page = 1, perPage = 50 } = {}) {
   const unionRes = await wpGet(
     `/wp-json/bodhi/v1/courses?mode=union&per_page=${perPage}&page=${page}`,
   );
-  const union = Array.isArray(unionRes) ? unionRes : unionRes?.items ?? [];
 
-  if (union.length > 0) {
+  if (unionRes && typeof unionRes === "object" && unionRes.code && unionRes.data?.status >= 400) {
+    if (__DEV__) console.log("[courses union-error]", unionRes.code, unionRes.data?.status, unionRes.message);
+  }
+
+  const union =
+    Array.isArray(unionRes)
+      ? unionRes
+      : Array.isArray(unionRes?.items)
+      ? unionRes.items
+      : [];
+
+  if (Array.isArray(union) && union.length > 0) {
     const items = union.map(adaptCourseCard);
     if (__DEV__) console.log("[courses union]", items.length);
     return { items };
