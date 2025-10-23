@@ -39,8 +39,6 @@ const HomeScreen = () => {
   const [user, setUser] = useState(null);
   const [items, setItems] = useState([]);
   const [owned, setOwned] = useState([]);
-  const [catalogItems, setCatalogItems] = useState([]);
-  const [ownedItems, setOwnedItems] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [coursesError, setCoursesError] = useState(null);
 
@@ -106,16 +104,15 @@ const HomeScreen = () => {
 
   const popularCoursesData = useMemo(() => {
     if (items.length) {
-      const locked = items.filter((item) => !item.isOwned);
+      const locked = items.filter((item) => !item?.isOwned);
       if (locked.length) return locked;
       return items;
     }
     return POPULAR_COURSES_FALLBACK;
   }, [items]);
 
-  const acquired = owned.length > 0 ? owned : items;
-  const acquiredSectionItems = acquired;
-  const acquiredSectionTitle = owned.length > 0 ? "Cursos adquiridos" : "Mis cursos";
+  const acquiredItems = owned.length ? owned : items;
+  const acquiredSectionTitle = owned.length ? "Cursos adquiridos" : "Mis cursos";
 
   const firstName =
     typeof user?.name === "string" && user.name.trim()
@@ -186,7 +183,7 @@ const HomeScreen = () => {
           {title({ title: "Cursos Populares" })}
           {popularCourses(popularCoursesData)}
           {title({ title: acquiredSectionTitle })}
-          {acquiredCourses(acquiredSectionItems)}
+          {acquiredCourses(acquiredItems)}
           {title({ title: "Inscríbete" })}
           {instructors()}
         </View>
@@ -340,7 +337,7 @@ const HomeScreen = () => {
   }
 
   function acquiredCourses(list = []) {
-    const arr = Array.isArray(list) ? list : []
+    const arr = Array.isArray(list) ? list : [];
     if (!arr.length) {
       return <EmptyState text="Aún no tienes cursos adquiridos." />;
     }
