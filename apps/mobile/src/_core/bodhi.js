@@ -1,4 +1,4 @@
-import { wpGet, wpPost, wpGetStoredUserId, wpSetStoredUserId, ensureNonce } from "./wpClient";
+import { wpGet, wpPost, ensureNonce } from "./wpClient";
 
 const OWNED = new Set(["owned", "member", "free", "owned_by_product"]);
 const asOwned = (access) =>
@@ -17,190 +17,27 @@ export function adaptCourseCard(course = {}) {
   };
 }
 
-const normalizeCourses = (payload) => {
-  const source = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload?.items)
-    ? payload.items
-    : [];
-  return source.map(adaptCourseCard);
+const toArray = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
 };
 
-const parseId = (value) => {
-  if (value == null) return 0;
-  if (typeof value === "number") return value | 0;
-  if (typeof value === "string") {
-    const match = value.match(/(\d{2,})/);
-    return match ? parseInt(match[1], 10) : 0;
-  }
-  if (typeof value === "object") {
-    for (const key of ["id", "ID", "post_id", "course_id"]) {
-      const parsed = parseId(value[key]);
-      if (parsed) return parsed;
-    }
-    if (value.course) return parseId(value.course.id);
-    if (value.post) return parseId(value.post.ID);
-  }
-  return 0;
-};
-
-async function fetchProductCourseIds(userId) {
-  const productsRes = await wpGet(
-    `/wp-json/tva/v1/customer/${userId}/products?context=edit`,
-  );
-  const products = Array.isArray(productsRes)
-    ? productsRes
-    : productsRes?.items ?? [];
-  const productIds = [...new Set(products.map(parseId).filter(Boolean))];
-
-  const idSet = new Set();
-  const nameById = {};
-
-  for (const productId of productIds) {
-    const productCoursesRes = await wpGet(
-      `/wp-json/tva/v1/products/${productId}/courses?context=edit&per_page=100`,
-    );
-    const productCourses = Array.isArray(productCoursesRes)
-      ? productCoursesRes
-      : productCoursesRes?.items ?? [];
-
-    for (const entry of productCourses) {
-      const courseId = parseId(entry);
-      if (!courseId) continue;
-      idSet.add(courseId);
-      if (typeof entry === "object") {
-        const name = entry.name || entry.title || entry.post_title;
-        if (name && !nameById[courseId]) {
-          nameById[courseId] = name;
-        }
-      }
-    }
-  }
-
-  return { idSet, nameById };
-}
-
-async function getUidSafe() {
-  const cached = await wpGetStoredUserId();
-  if (cached) return cached;
-
-  try {
-    const wpCore = await wpGet("/wp-json/wp/v2/users/me");
-    if (wpCore?.id) {
-      await wpSetStoredUserId(wpCore.id);
-      return wpCore.id;
-    }
-  } catch (_) {}
-
-  try {
-    const bodhiMe = await wpGet("/wp-json/bodhi/v1/me");
-    if (bodhiMe?.id) {
-      await wpSetStoredUserId(bodhiMe.id);
-      return bodhiMe.id;
-    }
-  } catch (_) {}
-
-  return null;
-}
-
-
-
-async function buildFallbackCourses(perPage) {
-  try {
-    const strictRes = await wpGet(`/wp-json/bodhi/v1/courses?mode=strict&per_page=${perPage}`);
-    const strictRaw = Array.isArray(strictRes)
-      ? strictRes
-      : Array.isArray(strictRes?.items)
-      ? strictRes.items
-      : [];
-
-    let merged = strictRaw.slice();
-
-    let uid = null;
-    try {
-      uid = await getUidSafe();
-    } catch (_) {}
-
-    if (uid) {
-      try {
-        const { idSet, nameById } = await fetchProductCourseIds(uid);
-
-        merged = merged.map((course) =>
-          idSet.has(course?.id)
-            ? {
-                ...course,
-                access: 'owned_by_product',
-                access_reason: 'product_grant',
-              }
-            : course,
-        );
-
-        const seen = new Set(merged.map((course) => course?.id));
-        idSet.forEach((courseId) => {
-          if (seen.has(courseId)) return;
-          merged.push({
-            id: courseId,
-            title: nameById[courseId] || `Curso #${courseId}`,
-            thumb: null,
-            status: 'publish',
-            access: 'owned_by_product',
-            access_reason: 'product_grant',
-          });
-        });
-      } catch (error) {
-        if (__DEV__) console.log('[courses tva-error]', String(error?.message || error));
-      }
-    } else if (__DEV__) {
-      console.log('[courses fallback:no-uid-safe]');
-    }
-
-    if (merged.length === 0 && uid) {
-      try {
-        const { idSet, nameById } = await fetchProductCourseIds(uid);
-        merged = Array.from(idSet).map((courseId) => ({
-          id: courseId,
-          title: nameById[courseId] || `Curso #${courseId}`,
-          access: 'owned_by_product',
-          access_reason: 'product_grant',
-        }));
-        if (__DEV__) console.log('[courses tva-only]', merged.length);
-      } catch (_) {}
-    }
-
-    return normalizeCourses(merged);
-  } catch (error) {
-    if (__DEV__) console.log('[fallbackCourses error]', String(error?.message || error));
-    return [];
-  }
-}
 export async function listMyCourses({ perPage = 50 } = {}) {
-  const unionUrl = `/wp-json/bodhi/v1/courses?mode=union&per_page=${perPage}`;
+  const url = `/wp-json/bodhi/v1/courses?mode=union&per_page=${perPage}`;
   try {
-    let response = await wpGet(unionUrl);
+    let response = await wpGet(url);
 
-    if (response?.code === "rest_cookie_invalid_nonce") {
+    if (response?.code) {
       if (__DEV__) console.log("[courses union-error]", response.code, response?.data?.status);
       await ensureNonce(true);
-      response = await wpGet(unionUrl);
+      response = await wpGet(url);
       if (response?.code) return { items: [] };
     }
 
-    const unionItems = normalizeCourses(response);
-    if (unionItems.length) {
-      if (__DEV__) console.log("[courses union]", unionItems.length);
-      return { items: unionItems };
-    }
-
-    const fallbackItems = await buildFallbackCourses(perPage);
-    if (__DEV__) {
-      const sample = fallbackItems.slice(0, 6).map(({ id, access, isOwned }) => ({
-        id,
-        access,
-        isOwned,
-      }));
-      console.log("[courses fallback client]", fallbackItems.length, sample);
-    }
-    return { items: fallbackItems };
+    const items = toArray(response).map(adaptCourseCard);
+    if (__DEV__) console.log("[courses]", items.length);
+    return { items };
   } catch (error) {
     if (__DEV__) console.log("[listMyCourses error]", String(error?.message || error));
     return { items: [] };
