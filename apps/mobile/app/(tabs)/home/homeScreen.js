@@ -117,6 +117,14 @@ const HomeScreen = () => {
       ? user.name.trim().split(/\s+/)[0]
       : null;
 
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <Text style={{ ...Fonts.white15Regular }}>Cargando tus cursos...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
       <CollapsingToolbar
