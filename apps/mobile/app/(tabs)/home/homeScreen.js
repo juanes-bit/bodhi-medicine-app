@@ -320,22 +320,6 @@ const HomeScreen = () => {
       );
     };
 
-    return (
-      <FlatList
-        data={list}
-        keyExtractor={(item, index) => `${item.courseId ?? index}`}
-        renderItem={renderItem}
-        showsHorizontalScrollIndicator={false}
-        horizontal
-        contentContainerStyle={{
-          paddingHorizontal: Sizes.fixPadding,
-          paddingTop: Sizes.fixPadding * 2.0,
-          paddingBottom: Sizes.fixPadding * 4.0,
-        }}
-      />
-    );
-  }
-
   function acquiredCourses(list) {
     if (!list.length) {
       return <EmptyState text="Aún no tienes cursos adquiridos." />;
