@@ -17,6 +17,15 @@ export function adaptCourseCard(course = {}) {
   };
 }
 
+const normalizeCourses = (payload) => {
+  const source = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.items)
+    ? payload.items
+    : [];
+  return source.map(adaptCourseCard);
+};
+
 const parseId = (value) => {
   if (value == null) return 0;
   if (typeof value === "number") return value | 0;
@@ -94,39 +103,18 @@ async function getUidSafe() {
   return null;
 }
 
-export async function listMyCourses(options = {}) {
+
+
+async function buildFallbackCourses(perPage) {
   try {
-    const { page = 1, perPage = 50 } = options;
+    const strictRes = await wpGet(`/wp-json/bodhi/v1/courses?mode=strict&per_page=${perPage}`);
+    const strictRaw = Array.isArray(strictRes)
+      ? strictRes
+      : Array.isArray(strictRes?.items)
+      ? strictRes.items
+      : [];
 
-    const fetchUnion = async () =>
-      wpGet(`/wp-json/bodhi/v1/courses?mode=union&per_page=${perPage}&page=${page}`);
-
-    let unionRes = await fetchUnion();
-    if (unionRes?.code === "rest_cookie_invalid_nonce") {
-      if (__DEV__)
-        console.log("[courses union-error]", unionRes.code, unionRes.data?.status, unionRes.message);
-      await ensureNonce(true);
-      unionRes = await fetchUnion();
-    }
-
-    const union =
-      Array.isArray(unionRes)
-        ? unionRes
-        : Array.isArray(unionRes?.items)
-        ? unionRes.items
-        : [];
-
-    if (Array.isArray(union) && union.length > 0) {
-      const items = union.map(adaptCourseCard);
-      if (__DEV__) console.log("[courses union]", items.length);
-      return { items };
-    }
-
-    const strictRes = await wpGet(
-      `/wp-json/bodhi/v1/courses?mode=strict&per_page=${perPage}&page=${page}`,
-    );
-    const strict = Array.isArray(strictRes) ? strictRes : strictRes?.items ?? [];
-    let merged = Array.isArray(strict) ? strict.slice() : [];
+    let merged = strictRaw.slice();
 
     let uid = null;
     try {
@@ -137,17 +125,15 @@ export async function listMyCourses(options = {}) {
       try {
         const { idSet, nameById } = await fetchProductCourseIds(uid);
 
-        merged = Array.isArray(merged)
-          ? merged.map((course) =>
-              idSet.has(course?.id)
-                ? {
-                    ...course,
-                    access: "owned_by_product",
-                    access_reason: "product_grant",
-                  }
-                : course,
-            )
-          : [];
+        merged = merged.map((course) =>
+          idSet.has(course?.id)
+            ? {
+                ...course,
+                access: 'owned_by_product',
+                access_reason: 'product_grant',
+              }
+            : course,
+        );
 
         const seen = new Set(merged.map((course) => course?.id));
         idSet.forEach((courseId) => {
@@ -156,41 +142,65 @@ export async function listMyCourses(options = {}) {
             id: courseId,
             title: nameById[courseId] || `Curso #${courseId}`,
             thumb: null,
-            status: "publish",
-            access: "owned_by_product",
-            access_reason: "product_grant",
+            status: 'publish',
+            access: 'owned_by_product',
+            access_reason: 'product_grant',
           });
         });
       } catch (error) {
-        if (__DEV__) console.log("[courses tva-error]", String(error?.message || error));
+        if (__DEV__) console.log('[courses tva-error]', String(error?.message || error));
       }
     } else if (__DEV__) {
-      console.log("[courses fallback:no-uid-safe]");
+      console.log('[courses fallback:no-uid-safe]');
     }
 
-    if (Array.isArray(merged) && merged.length === 0 && uid) {
+    if (merged.length === 0 && uid) {
       try {
         const { idSet, nameById } = await fetchProductCourseIds(uid);
         merged = Array.from(idSet).map((courseId) => ({
           id: courseId,
           title: nameById[courseId] || `Curso #${courseId}`,
-          access: "owned_by_product",
-          access_reason: "product_grant",
+          access: 'owned_by_product',
+          access_reason: 'product_grant',
         }));
-        if (__DEV__) console.log("[courses tva-only]", merged.length);
+        if (__DEV__) console.log('[courses tva-only]', merged.length);
       } catch (_) {}
     }
 
-    const items = Array.isArray(merged) ? merged.map(adaptCourseCard) : [];
+    return normalizeCourses(merged);
+  } catch (error) {
+    if (__DEV__) console.log('[fallbackCourses error]', String(error?.message || error));
+    return [];
+  }
+}
+export async function listMyCourses({ perPage = 50 } = {}) {
+  const unionUrl = `/wp-json/bodhi/v1/courses?mode=union&per_page=${perPage}`;
+  try {
+    let response = await wpGet(unionUrl);
+
+    if (response?.code === "rest_cookie_invalid_nonce") {
+      if (__DEV__) console.log("[courses union-error]", response.code, response?.data?.status);
+      await ensureNonce(true);
+      response = await wpGet(unionUrl);
+      if (response?.code) return { items: [] };
+    }
+
+    const unionItems = normalizeCourses(response);
+    if (unionItems.length) {
+      if (__DEV__) console.log("[courses union]", unionItems.length);
+      return { items: unionItems };
+    }
+
+    const fallbackItems = await buildFallbackCourses(perPage);
     if (__DEV__) {
-      const sample = items.slice(0, 6).map(({ id, access, isOwned }) => ({
+      const sample = fallbackItems.slice(0, 6).map(({ id, access, isOwned }) => ({
         id,
         access,
         isOwned,
       }));
-      console.log("[courses]", items.length, sample);
+      console.log("[courses fallback client]", fallbackItems.length, sample);
     }
-    return { items };
+    return { items: fallbackItems };
   } catch (error) {
     if (__DEV__) console.log("[listMyCourses error]", String(error?.message || error));
     return { items: [] };
