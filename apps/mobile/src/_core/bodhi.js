@@ -115,7 +115,7 @@ export async function listMyCourses(options = {}) {
         : [];
 
     if (Array.isArray(union) && union.length > 0) {
-      const items = union.map(adaptCourseCard);
+      const items = Array.isArray(union) ? union.map(adaptCourseCard) : [];
       if (__DEV__) console.log("[courses union]", items.length);
       return { items };
     }
@@ -124,7 +124,7 @@ export async function listMyCourses(options = {}) {
       `/wp-json/bodhi/v1/courses?mode=strict&per_page=${perPage}&page=${page}`,
     );
     const strict = Array.isArray(strictRes) ? strictRes : strictRes?.items ?? [];
-    let merged = strict.slice();
+    let merged = Array.isArray(strict) ? strict.slice() : [];
 
     let uid = null;
     try {
@@ -135,15 +135,17 @@ export async function listMyCourses(options = {}) {
       try {
         const { idSet, nameById } = await fetchProductCourseIds(uid);
 
-        merged = merged.map((course) =>
-          idSet.has(course?.id)
-            ? {
-                ...course,
-                access: "owned_by_product",
-                access_reason: "product_grant",
-              }
-            : course,
-        );
+        merged = Array.isArray(merged)
+          ? merged.map((course) =>
+              idSet.has(course?.id)
+                ? {
+                    ...course,
+                    access: "owned_by_product",
+                    access_reason: "product_grant",
+                  }
+                : course,
+            )
+          : [];
 
         const seen = new Set(merged.map((course) => course?.id));
         idSet.forEach((courseId) => {
@@ -164,7 +166,7 @@ export async function listMyCourses(options = {}) {
       console.log("[courses fallback:no-uid-safe]");
     }
 
-    if (merged.length === 0 && uid) {
+    if (Array.isArray(merged) && merged.length === 0 && uid) {
       try {
         const { idSet, nameById } = await fetchProductCourseIds(uid);
         merged = Array.from(idSet).map((courseId) => ({
@@ -184,7 +186,7 @@ export async function listMyCourses(options = {}) {
         access,
         isOwned,
       }));
-      console.log("[courses fallback client]", items.length, sample);
+      console.log("[courses]", items.length, sample);
     }
     return { items };
   } catch (error) {
