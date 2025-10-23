@@ -37,11 +37,8 @@ const HomeScreen = () => {
   const flatListRef = useRef(null);
 
   const [user, setUser] = useState(null);
-  const [acquired, setAcquired] = useState({
-    items: [],
-    owned: [],
-    title: 'Cursos adquiridos',
-  });
+  const [catalogItems, setCatalogItems] = useState([]);
+  const [ownedItems, setOwnedItems] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [coursesError, setCoursesError] = useState(null);
 
@@ -72,14 +69,11 @@ const HomeScreen = () => {
           setUser(profile);
         }
 
-        const { items } = await listMyCourses({ profile });
-        if (cancelled) {
-          return;
-        }
+        const res = await listMyCourses({ profile }).catch(() => ({ items: [] }));
+        if (cancelled) return;
 
+        const items = Array.isArray(res?.items) ? res.items : [];
         const owned = items.filter((item) => item?.isOwned);
-        const acquiredItems = owned.length > 0 ? owned : items;
-        const acquiredTitle = owned.length > 0 ? 'Cursos adquiridos' : 'Mis cursos (bloqueados)';
 
         if (__DEV__) {
           console.log('[home] total=', items.length, 'owned=', owned.length,
@@ -87,7 +81,8 @@ const HomeScreen = () => {
           );
         }
 
-        setAcquired({ items, owned, acquired: acquiredItems, title: acquiredTitle });
+        setCatalogItems(items);
+        setOwnedItems(owned);
         setCoursesError(null);
       } catch (error) {
         if (!cancelled) {
@@ -340,25 +335,26 @@ const HomeScreen = () => {
     );
   }
 
-  function acquiredCourses(list) {
-    if (!list.length) {
+  function acquiredCourses(list = []) {
+    const arr = Array.isArray(list) ? list : []
+    if (!arr.length) {
       return <EmptyState text="Aún no tienes cursos adquiridos." />;
     }
 
     const renderItem = ({ item }) => {
-      const handlePress = (course) => {
+      const handlePress = () => {
         if (!item?.isOwned) {
           Alert.alert("Bodhi Medicine", "Aún no tienes acceso a este curso.");
           return;
         }
         navigation.push("courseDetail/courseDetailScreen", {
-          image: course.image,
-          courseName: course.courseName,
-          courseCategory: course.courseCategory,
-          courseRating: course.courseRating,
-          courseNumberOfRating: course.courseNumberOfRating,
-          coursePrice: course.coursePrice,
-          courseId: course.courseId,
+          image: item.image,
+          courseName: item.courseName,
+          courseCategory: item.courseCategory,
+          courseRating: item.courseRating,
+          courseNumberOfRating: item.courseNumberOfRating,
+          coursePrice: item.coursePrice,
+          courseId: item.courseId,
         });
       };
 
@@ -412,7 +408,7 @@ const HomeScreen = () => {
 
     return (
       <FlatList
-        data={list}
+        data={arr}
         keyExtractor={(item, index) => `${item.courseId ?? index}`}
         renderItem={renderItem}
         showsHorizontalScrollIndicator={false}
