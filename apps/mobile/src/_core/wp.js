@@ -18,11 +18,13 @@ async function buildCookieHeader() {
   return pairs.join('; ');
 }
 
-const isWP = (urlOrPath) => {
+const isWP = (value = '') => {
   try {
-    return new URL(urlOrPath, BASE).pathname.startsWith('/wp-json/');
+    if (value.startsWith('/wp-json/')) return true;
+    const url = new URL(value);
+    return url.pathname.startsWith('/wp-json/');
   } catch {
-    return String(urlOrPath || '').includes('/wp-json/');
+    return String(value || '').includes('/wp-json/');
   }
 };
 
@@ -93,11 +95,10 @@ export async function wpFetch(path, opts = {}) {
     const headers = { ...(opts.headers || {}) };
     const method = opts.method ?? 'GET';
     const body = opts.body;
-    const needsNonce = isWP(url);
+    const needsNonce = isWP(path);
 
     const cookieHeader = await buildCookieHeader();
     if (cookieHeader) headers.Cookie = cookieHeader;
-    if (!headers.Referer) headers.Referer = BASE;
 
     delete headers.Authorization;
     delete headers.authorization;
@@ -106,6 +107,8 @@ export async function wpFetch(path, opts = {}) {
       if (!_nonce) _nonce = await AsyncStorage.getItem(NONCE_KEY);
       if (!_nonce) await ensureNonce();
       if (_nonce) headers['X-WP-Nonce'] = _nonce;
+      if (!headers.Referer) headers.Referer = BASE;
+      headers['X-Requested-With'] = headers['X-Requested-With'] || 'XMLHttpRequest';
     }
 
     return fetch(url, {
