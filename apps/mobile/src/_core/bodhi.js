@@ -1,4 +1,4 @@
-import { wpGet, ensureNonce } from "./wpClient";
+import { wpGet, wpPost, ensureNonce } from "./wpClient";
 
 const OWNED = new Set(["owned", "member", "free", "owned_by_product"]);
 const asOwned = (access) =>
@@ -17,17 +17,18 @@ export function adaptCourseCard(course = {}) {
   };
 }
 
-const toArray = (payload) =>
-  Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload?.items)
-    ? payload.items
-    : [];
+const toArray = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (payload && typeof payload === "object") {
+    if (Array.isArray(payload.items)) return payload.items;
+    if (Array.isArray(payload.data)) return payload.data;
+  }
+  return [];
+};
 
 export async function listMyCourses({ perPage = 50, allowLocked = true } = {}) {
   const url = `/wp-json/bodhi/v1/courses?mode=union&per_page=${perPage}`;
   try {
-    await ensureNonce(true);
     let response = await wpGet(url);
 
     if (response?.code) {
@@ -46,7 +47,8 @@ export async function listMyCourses({ perPage = 50, allowLocked = true } = {}) {
 
     return { items, total: all.length, owned: owned.length };
   } catch (error) {
-    if (__DEV__) console.log("[listMyCourses error]", String(error?.message || error));
+    if (__DEV__)
+      console.log("[listMyCourses error]", String(error?.code || error?.message || error));
     return { items: [], total: 0, owned: 0 };
   }
 }
