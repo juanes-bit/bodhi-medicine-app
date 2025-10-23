@@ -1,4 +1,4 @@
-import { wpGet, wpPost } from "./wpClient";
+import { wpGet, wpPost, wpGetStoredUserId, wpSetStoredUserId } from "./wpClient";
 
 const OWNED = new Set(["owned", "member", "free", "owned_by_product"]);
 const asOwned = (access) =>
@@ -93,6 +93,9 @@ export async function listMyCourses({ page = 1, perPage = 50, profile = null } =
   const strict = Array.isArray(strictRes) ? strictRes : strictRes?.items ?? [];
 
   let userId = parseId(profile?.id ?? profile?.user_id ?? profile?.user ?? profile);
+  if (!userId) {
+    userId = await wpGetStoredUserId();
+  }
 
   if (!userId) {
     const me = await wpGet("/wp-json/bodhi/v1/me");
@@ -102,6 +105,11 @@ export async function listMyCourses({ page = 1, perPage = 50, profile = null } =
       return { items };
     }
     userId = parseId(me?.id ?? me?.user_id ?? me?.user ?? me);
+    if (userId) {
+      await wpSetStoredUserId(userId);
+    }
+  } else {
+    await wpSetStoredUserId(userId);
   }
 
   if (!userId) {
