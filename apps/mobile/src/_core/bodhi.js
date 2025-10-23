@@ -93,11 +93,16 @@ export async function listMyCourses({ page = 1, perPage = 50 } = {}) {
   const strict = Array.isArray(strictRes) ? strictRes : strictRes?.items ?? [];
 
   const me = await wpGet("/wp-json/bodhi/v1/me");
-  const userId = me?.id;
+  if (me && typeof me === "object" && me.code && me.data?.status >= 400) {
+    const items = strict.map(adaptCourseCard);
+    if (__DEV__) console.log("[courses fallback:me-error]", me.code, me.data?.status, me.message);
+    return { items };
+  }
+  const userId = parseId(me?.id ?? me?.user_id ?? me?.user ?? me);
 
   if (!userId) {
     const items = strict.map(adaptCourseCard);
-    if (__DEV__) console.log("[courses fallback:no-uid]", items.length);
+    if (__DEV__) console.log("[courses fallback:no-uid]", items.length, me);
     return { items };
   }
 
