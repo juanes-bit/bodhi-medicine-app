@@ -57,11 +57,6 @@ export async function ensureNonce(force = false) {
   return null;
 }
 
-async function headersWithNonce(headers = {}) {
-  const nonce = await ensureNonce();
-  return nonce ? { ...headers, 'X-WP-Nonce': nonce } : headers;
-}
-
 export async function wpLogin(email, password) {
   await CookieManager.clearAll(true);
   await AsyncStorage.removeItem(NONCE_KEY);
@@ -91,51 +86,50 @@ export async function wpLogin(email, password) {
   return data;
 }
 
-export async function wpFetch(path, { method = 'GET', headers = {}, body, retry = true } = {}) {
+export async function wpFetch(path, opts = {}, retry = 0) {
   const url = toURL(path);
+  const headers = { ...(opts.headers || {}) };
+  const method = opts.method ?? 'GET';
+  const body = opts.body;
   const needsNonce = isWP(url);
 
   const cookieHeader = await buildCookieHeader();
-  const requestHeaders = {
-    'Content-Type': 'application/json',
-    Referer: BASE,
-    ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-    ...headers,
-  };
+  if (cookieHeader) headers.Cookie = cookieHeader;
+  if (!headers.Referer) headers.Referer = BASE;
 
-  delete requestHeaders.Authorization;
-  delete requestHeaders.authorization;
+  delete headers.Authorization;
+  delete headers.authorization;
 
   if (needsNonce) {
     if (!_nonce) _nonce = await AsyncStorage.getItem(NONCE_KEY);
     if (!_nonce) await ensureNonce();
-    if (_nonce) requestHeaders['X-WP-Nonce'] = _nonce;
+    if (_nonce) headers['X-WP-Nonce'] = _nonce;
   }
 
   const response = await fetch(url, {
+    ...opts,
     method,
-    headers: requestHeaders,
+    headers,
     body,
     credentials: 'include',
   });
 
-  if (needsNonce && (response.status === 401 || response.status === 403) && retry) {
+  if (needsNonce && (response.status === 401 || response.status === 403) && retry === 0) {
     let payload = null;
     try {
       payload = await response.clone().json();
     } catch {}
     const code = payload?.code;
     if (code === 'rest_cookie_invalid_nonce' || code === 'rest_forbidden') {
-      _nonce = null;
-      await AsyncStorage.removeItem(NONCE_KEY);
+      if (__DEV__) console.log('[wpFetch] nonce inválido → refresh');
       await ensureNonce(true);
-      return wpFetch(path, { method, headers, body }, false);
+      return wpFetch(path, opts, 1);
     }
   }
 
-  const text = await response.text();
+  if (opts.raw) return response;
   try {
-    return JSON.parse(text);
+    return await response.json();
   } catch {
     return null;
   }
