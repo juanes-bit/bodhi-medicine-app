@@ -4,6 +4,7 @@ import CookieManager from '@react-native-cookies/cookies';
 export const BASE = 'https://staging.bodhimedicine.com';
 
 const NONCE_KEY = 'wp_nonce';
+const USER_ID_KEY = 'wp_user_id';
 let _nonce = null;
 
 async function buildCookieHeader() {
@@ -89,6 +90,10 @@ export async function wpLogin(email, password) {
     await AsyncStorage.setItem(NONCE_KEY, _nonce);
   }
 
+  if (data?.user?.id) {
+    await AsyncStorage.setItem(USER_ID_KEY, String(data.user.id));
+  }
+
   return data;
 }
 
@@ -141,3 +146,19 @@ export const wpPost = (path, data) =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data ?? {}),
   });
+
+export async function wpGetStoredUserId() {
+  try {
+    const value = await AsyncStorage.getItem(USER_ID_KEY);
+    return value ? parseInt(value, 10) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function wpSetStoredUserId(id) {
+  try {
+    await AsyncStorage.setItem(USER_ID_KEY, String(id));
+  } catch {}
+}
+
