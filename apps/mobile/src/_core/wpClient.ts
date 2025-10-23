@@ -1,4 +1,4 @@
-import { wpFetch } from './wp';
+import { wpFetch, wpGetStoredUserId, wpSetStoredUserId } from './wp';
 
 export const wpGet = async (path: string) => {
   return wpFetch(path, { method: 'GET' });
@@ -11,3 +11,5 @@ export const wpPost = async (path: string, body?: any) => {
     body: body ? JSON.stringify(body) : undefined,
   });
 };
+
+export { wpGetStoredUserId, wpSetStoredUserId };
