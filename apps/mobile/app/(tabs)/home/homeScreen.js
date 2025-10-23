@@ -37,7 +37,7 @@ const HomeScreen = () => {
   const flatListRef = useRef(null);
 
   const [user, setUser] = useState(null);
-  const [courseCatalog, setCourseCatalog] = useState({ items: [], owned: [] });
+  const [acquired, setAcquired] = useState({ items: [], owned: [], title: "Cursos adquiridos" });
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [coursesError, setCoursesError] = useState(null);
 
@@ -74,13 +74,16 @@ const HomeScreen = () => {
         }
 
         const owned = items.filter((item) => item?.isOwned);
+        const acquiredItems = owned.length > 0 ? owned : items;
+        const acquiredTitle = owned.length > 0 ? 'Cursos adquiridos' : 'Mis cursos (bloqueados)';
+
         if (__DEV__) {
-          console.log('[home] courses total=', items.length, 'owned=', owned.length,
-            items.slice(0, 5).map((x) => ({ id: x.id, access: x.access, isOwned: x.isOwned, reason: x._debug_access_reason })),
+          console.log('[home] total=', items.length, 'owned=', owned.length,
+            items.slice(0, 5).map((x) => ({ id: x.id, access: x.access, isOwned: x.isOwned, r: x._debug_access_reason })),
           );
         }
 
-        setCourseCatalog({ items, owned });
+        setAcquired({ items: acquiredItems, owned, title: acquiredTitle });
         setCoursesError(null);
       } catch (error) {
         if (!cancelled) {
