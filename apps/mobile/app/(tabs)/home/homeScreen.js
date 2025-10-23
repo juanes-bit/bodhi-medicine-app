@@ -37,7 +37,11 @@ const HomeScreen = () => {
   const flatListRef = useRef(null);
 
   const [user, setUser] = useState(null);
-  const [catalog, setCatalog] = useState({ all: [], acquired: [], title: 'Cursos adquiridos' });
+  const [acquired, setAcquired] = useState({
+    items: [],
+    owned: [],
+    title: 'Cursos adquiridos',
+  });
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [coursesError, setCoursesError] = useState(null);
 
@@ -83,7 +87,7 @@ const HomeScreen = () => {
           );
         }
 
-        setCatalog({ all: items, acquired: acquiredItems, title: acquiredTitle });
+        setAcquired({ items, owned, acquired: acquiredItems, title: acquiredTitle });
         setCoursesError(null);
       } catch (error) {
         if (!cancelled) {
@@ -104,16 +108,16 @@ const HomeScreen = () => {
   
 
   const popularCoursesData = useMemo(() => {
-    if (catalog.all.length) {
-      const locked = catalog.all.filter((item) => !item.isOwned);
+    if (acquired.items.length) {
+      const locked = acquired.items.filter((item) => !item.isOwned);
       if (locked.length) return locked;
-      return catalog.all;
+      return acquired.items;
     }
     return POPULAR_COURSES_FALLBACK;
-  }, [catalog.all]);
+  }, [acquired.items]);
 
-  const acquiredSectionItems = catalog.acquired;
-  const acquiredSectionTitle = catalog.title;
+  const acquiredSectionItems = acquired.acquired;
+  const acquiredSectionTitle = acquired.title;
 
   const firstName =
     typeof user?.name === "string" && user.name.trim()
@@ -268,7 +272,7 @@ const HomeScreen = () => {
 
     const renderItem = ({ item }) => {
       const handlePress = () => {
-        if (item?.isOwned === false) {
+        if (!item?.isOwned) {
           Alert.alert("Bodhi Medicine", "Aún no tienes acceso a este curso.");
           return;
         }
@@ -342,26 +346,26 @@ const HomeScreen = () => {
     }
 
     const renderItem = ({ item }) => {
-      const handlePress = () => {
+      const handlePress = (course) => {
         if (!item?.isOwned) {
           Alert.alert("Bodhi Medicine", "Aún no tienes acceso a este curso.");
           return;
         }
         navigation.push("courseDetail/courseDetailScreen", {
-          image: item.image,
-          courseName: item.courseName,
-          courseCategory: item.courseCategory,
-          courseRating: item.courseRating,
-          courseNumberOfRating: item.courseNumberOfRating,
-          coursePrice: item.coursePrice,
-          courseId: item.courseId,
+          image: course.image,
+          courseName: course.courseName,
+          courseCategory: course.courseCategory,
+          courseRating: course.courseRating,
+          courseNumberOfRating: course.courseNumberOfRating,
+          coursePrice: course.coursePrice,
+          courseId: course.courseId,
         });
       };
 
       return (
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={handlePress}
+          onPress={() => handlePress(item)}
           style={styles.popularCoursesContainerStyle}
         >
           <Image
