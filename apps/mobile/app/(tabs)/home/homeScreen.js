@@ -68,11 +68,14 @@ const HomeScreen = () => {
           setUser(profile);
         }
 
-        const res = await listMyCourses({ perPage: 50, allowLocked: true }).catch(() => ({ items: [] }));
+        const res = await listMyCourses().catch(() => ({
+          items: [],
+          itemsOwned: [],
+        }));
         if (cancelled) return;
 
         const all = Array.isArray(res?.items) ? res.items : [];
-        const mine = Array.isArray(res?.itemsOwned) ? res.itemsOwned : all.filter((item) => item?.isOwned);
+        const mine = Array.isArray(res?.itemsOwned) ? res.itemsOwned : [];
 
         if (__DEV__) {
           console.log('[home] total=', res?.total ?? all.length, 'owned=', res?.owned ?? mine.length, all);
@@ -341,7 +344,7 @@ const HomeScreen = () => {
   }
 
   function acquiredCourses(list = []) {
-    const arr = Array.isArray(list) ? list.filter((course) => course?.isOwned) : [];
+    const arr = Array.isArray(list) ? list : [];
     if (!arr.length) {
       return <EmptyState text="Aún no tienes cursos adquiridos." />;
     }
@@ -381,11 +384,6 @@ const HomeScreen = () => {
               >
                 {item.courseCategory}
               </Text>
-              {!item.isOwned ? (
-                <View style={styles.lockedBadge}>
-                  <Text style={styles.lockedBadgeText}>Bloqueado</Text>
-                </View>
-              ) : null}
             </View>
             <Text
               style={{ ...Fonts.gray15Regular, marginBottom: Sizes.fixPadding - 5.0 }}
