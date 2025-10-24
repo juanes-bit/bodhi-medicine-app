@@ -59,33 +59,43 @@ const HomeScreen = () => {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      if (cancelled) return;
+
+      setLoading(true);
+
       try {
         const profile = await me().catch(() => null);
-        if (cancelled) {
-          return;
-        }
-        if (profile) {
+        if (!cancelled && profile) {
           setUser(profile);
         }
 
-        const res = await listMyCourses().catch(() => ({
-          items: [],
-          itemsOwned: [],
-        }));
+        const coursesRes = await listMyCourses().catch((error) => {
+          console.log('[listMyCourses error]', error);
+          return { items: [], itemsOwned: [], owned: 0, total: 0, show: 0 };
+        });
+
         if (cancelled) return;
 
-        const all = Array.isArray(res?.items) ? res.items : [];
-        const mine = Array.isArray(res?.itemsOwned) ? res.itemsOwned : [];
+        const all = Array.isArray(coursesRes?.items) ? coursesRes.items : [];
+        const mine = Array.isArray(coursesRes?.itemsOwned) ? coursesRes.itemsOwned : [];
 
         if (__DEV__) {
-          console.log('[home] total=', res?.total ?? all.length, 'owned=', res?.owned ?? mine.length, all);
+          console.log('[home] courses', {
+            owned: coursesRes?.owned ?? mine.length,
+            total: coursesRes?.total ?? all.length,
+            show: coursesRes?.show ?? all.length,
+          });
         }
 
         setItems(all);
         setOwned(mine);
+        setCoursesError(null);
       } catch (error) {
+        console.log('[home] error', error);
         if (!cancelled) {
           setCoursesError(String(error?.message || error));
+          setItems([]);
+          setOwned([]);
         }
       } finally {
         if (!cancelled) {
