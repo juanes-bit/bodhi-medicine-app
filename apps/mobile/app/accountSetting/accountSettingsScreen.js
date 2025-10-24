@@ -103,6 +103,7 @@ const AccountSettingScreen = () => {
                 }}>
                     {userPhoto()}
                     {userName()}
+                    {membershipBadge()}
                     {editProfileText()}
                     <TouchableOpacity
                         activeOpacity={0.9}
@@ -121,7 +122,7 @@ const AccountSettingScreen = () => {
                         activeOpacity={0.9}
                         onPress={() => updateState({ passwordDialog: true })}
                     >
-                    {editInfo({ title: 'Contraseña', value: '******' })}
+                    {editInfo({ title: 'Restablecer contraseña' })}
                     </TouchableOpacity>
                     <TouchableOpacity
                         activeOpacity={0.9}
@@ -451,6 +452,14 @@ const AccountSettingScreen = () => {
         )
     }
 
+    function membershipBadge() {
+        return (
+            <View style={styles.membershipBadge}>
+                <Text style={styles.membershipBadgeText}>Estudiante Premium</Text>
+            </View>
+        );
+    }
+
     function editInfo({ title, value }) {
         return (
             <View>
@@ -463,7 +472,9 @@ const AccountSettingScreen = () => {
                         }}>
                             {title}
                         </Text>
-                        <Text style={{ ...Fonts.gray15Bold }}>{value}</Text>
+                        {value ? (
+                            <Text style={{ ...Fonts.gray15Bold }}>{value}</Text>
+                        ) : null}
                     </View>
                     <MaterialIcons name="edit" size={30} color="#BDBDBD" />
                 </View>
@@ -516,6 +527,18 @@ const AccountSettingScreen = () => {
 }
 
 const styles = StyleSheet.create({
+    membershipBadge: {
+        alignSelf: 'center',
+        backgroundColor: 'rgba(180,102,145,0.15)',
+        paddingHorizontal: Sizes.fixPadding * 1.5,
+        paddingVertical: Sizes.fixPadding / 2,
+        borderRadius: Sizes.fixPadding,
+        marginTop: Sizes.fixPadding,
+    },
+    membershipBadgeText: {
+        ...Fonts.primaryColor16Regular,
+        fontFamily: 'Montserrat_600SemiBold',
+    },
     dialogContainerStyle: {
         backgroundColor: Colors.whiteColor,
         width: '85%',
