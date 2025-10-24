@@ -64,11 +64,13 @@ const resolveWpUrl = (path) => {
   return `${BASE}/wp-json${sanitized}`;
 };
 
-async function fetchJson(path, { method = 'GET', headers = {}, body } = {}) {
+async function fetchJson(path, { method = 'GET', headers = {}, body, nonce } = {}) {
   const fullUrl = resolveWpUrl(path);
   const isBodhiEndpoint = fullUrl.includes('/wp-json/bodhi/v1/');
   const isWpEndpoint = fullUrl.includes('/wp-json/');
-  const needsNonce = isWpEndpoint && !isBodhiEndpoint;
+  const skipNonce = nonce === false;
+  const forceNonce = nonce === true;
+  const needsNonce = forceNonce || (!skipNonce && isWpEndpoint && !isBodhiEndpoint);
 
   const baseHeaders = { Accept: 'application/json', ...headers };
 
@@ -77,14 +79,18 @@ async function fetchJson(path, { method = 'GET', headers = {}, body } = {}) {
     baseHeaders.Cookie = cookie;
   }
 
-  if (needsNonce && !WP_NONCE) {
-    await ensureNonce();
-  }
-  if (needsNonce && WP_NONCE && !baseHeaders['X-WP-Nonce']) {
-    baseHeaders['X-WP-Nonce'] = WP_NONCE;
+  if (needsNonce) {
+    if (!WP_NONCE) {
+      await ensureNonce();
+    }
+    if (WP_NONCE && !baseHeaders['X-WP-Nonce']) {
+      baseHeaders['X-WP-Nonce'] = WP_NONCE;
+    }
+  } else if (skipNonce) {
+    delete baseHeaders['X-WP-Nonce'];
   }
 
-  const doFetch = async (withNonce = baseHeaders.hasOwnProperty('X-WP-Nonce')) => {
+  const doFetch = async (withNonce = needsNonce && baseHeaders.hasOwnProperty('X-WP-Nonce')) => {
     const finalHeaders = { ...baseHeaders };
     if (!withNonce) delete finalHeaders['X-WP-Nonce'];
 
@@ -138,7 +144,7 @@ async function fetchJson(path, { method = 'GET', headers = {}, body } = {}) {
     return data;
   };
 
-  return doFetch(Boolean(baseHeaders['X-WP-Nonce']));
+  return doFetch(needsNonce && baseHeaders.hasOwnProperty('X-WP-Nonce'));
 }
 
 async function refreshNonce() {
@@ -242,8 +248,8 @@ export async function wpLogin(email, password) {
 }
 
 export async function wpFetch(path, opts = {}) {
-  const { method = 'GET', headers = {}, body } = opts;
-  return fetchJson(path, { method, headers, body });
+  const { method = 'GET', headers = {}, body, nonce } = opts;
+  return fetchJson(path, { method, headers, body, nonce });
 }
 
 export const wpGet = (path, options = {}) =>
@@ -258,6 +264,7 @@ export const wpPost = (path, body = {}, options = {}) =>
       ...(options.headers || {}),
     },
     body: JSON.stringify(body ?? {}),
+    nonce: options?.nonce === false ? false : true,
   });
 
 export async function wpGetStoredUserId() {
