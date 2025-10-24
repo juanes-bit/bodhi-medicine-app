@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
   },
   continueWatchingContainer: {
     marginTop: Sizes.fixPadding * 2.5,
-    paddingHorizontal: Sizes.fixPadding * 1.5,
+    paddingHorizontal: Sizes.fixPadding * 2,
   },
   continueHeader: {
     flexDirection: 'row',
@@ -633,9 +633,10 @@ const styles = StyleSheet.create({
   },
   continueTitle: {
     ...Fonts.black19Bold,
+    color: Colors.blackColor,
   },
   continueSeeMore: {
-    ...Fonts.indigoColor18Bold,
+    ...Fonts.indigoColor14Bold,
     fontSize: 13,
     textTransform: 'uppercase',
   },
@@ -644,9 +645,10 @@ const styles = StyleSheet.create({
     borderRadius: Sizes.fixPadding * 2,
     ...CommonStyles.shadow,
     padding: Sizes.fixPadding * 1.4,
+    elevation: 3,
   },
   continueImage: {
-    height: 160,
+    height: 165,
     borderRadius: Sizes.fixPadding * 1.8,
     marginBottom: Sizes.fixPadding,
     overflow: 'hidden',
@@ -657,9 +659,9 @@ const styles = StyleSheet.create({
     borderRadius: Sizes.fixPadding * 1.8,
   },
   playButton: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: Colors.whiteColor,
     alignItems: 'center',
     justifyContent: 'center',
@@ -668,6 +670,7 @@ const styles = StyleSheet.create({
   continueCourseTitle: {
     ...Fonts.gray16Regular,
     marginTop: Sizes.fixPadding / 2,
+    paddingHorizontal: Sizes.fixPadding / 2,
   },
   subscribeContainer: {
     flexDirection: "row",
