@@ -222,6 +222,28 @@ const HomeScreen = () => {
             paddingVertical: Sizes.fixPadding * 2.0,
           }}
         />
+        <View style={styles.continueWatchingContainer}>
+          <View style={styles.continueHeader}>
+            <Text style={styles.continueTitle}>Continuar viendo</Text>
+            <TouchableOpacity activeOpacity={0.8}>
+              <Text style={styles.continueSeeMore}>Ver más</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity activeOpacity={0.9} style={styles.continueCard}>
+            <ImageBackground
+              source={require("../../../assets/images/new_course/new_course_4.png")}
+              style={styles.continueImage}
+              imageStyle={styles.continueImageStyle}
+            >
+              <View style={styles.playButton}>
+                <MaterialIcons name="play-arrow" size={28} color={Colors.primaryColor} />
+              </View>
+            </ImageBackground>
+            <Text numberOfLines={1} style={styles.continueCourseTitle}>
+              Tu recorrido en Bodhi Medicine
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -609,6 +631,54 @@ const styles = StyleSheet.create({
     ...Fonts.white15Bold,
     fontSize: 11,
     color: Colors.whiteColor,
+  },
+  continueWatchingContainer: {
+    marginTop: Sizes.fixPadding * 2.5,
+    paddingHorizontal: Sizes.fixPadding * 1.5,
+  },
+  continueHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Sizes.fixPadding,
+  },
+  continueTitle: {
+    ...Fonts.black19Bold,
+  },
+  continueSeeMore: {
+    ...Fonts.indigoColor18Bold,
+    fontSize: 13,
+    textTransform: 'uppercase',
+  },
+  continueCard: {
+    backgroundColor: Colors.whiteColor,
+    borderRadius: Sizes.fixPadding * 2,
+    ...CommonStyles.shadow,
+    padding: Sizes.fixPadding * 1.4,
+  },
+  continueImage: {
+    height: 160,
+    borderRadius: Sizes.fixPadding * 1.8,
+    marginBottom: Sizes.fixPadding,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  continueImageStyle: {
+    borderRadius: Sizes.fixPadding * 1.8,
+  },
+  playButton: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: Colors.whiteColor,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...CommonStyles.shadow,
+  },
+  continueCourseTitle: {
+    ...Fonts.gray16Regular,
+    marginTop: Sizes.fixPadding / 2,
   },
   subscribeContainer: {
     flexDirection: "row",
