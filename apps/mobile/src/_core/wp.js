@@ -141,12 +141,13 @@ export async function wpFetch(path, opts = {}) {
     if (needsNonce) {
       if (!_nonce) _nonce = await AsyncStorage.getItem(NONCE_KEY);
       if (!_nonce) await ensureNonce();
-      if (_nonce) headers['X-WP-Nonce'] = _nonce;
-      if (!headers.Referer) headers.Referer = BASE;
+      const sanitized = sanitizeNonce(_nonce);
+      if (sanitized) headers['X-WP-Nonce'] = sanitized;
+      headers['Referer'] = headers['Referer'] || BASE;
       headers['X-Requested-With'] = headers['X-Requested-With'] || 'XMLHttpRequest';
     }
 
-    const finalUrl = needsNonce && _nonce ? withNonceQuery(url, _nonce) : url;
+    const finalUrl = needsNonce && _nonce ? withNonceQuery(url, sanitizeNonce(_nonce)) : url;
 
     return fetch(finalUrl, {
       ...opts,
@@ -159,7 +160,7 @@ export async function wpFetch(path, opts = {}) {
 
   let response = await doFetch();
 
-  if ((response.status === 401 || response.status === 403) && isWP(url)) {
+  if ((response.status === 401 || response.status === 403) && isWP(path)) {
     try {
       const payload = await response.clone().json().catch(() => ({}));
       const code = payload?.code;
@@ -167,6 +168,19 @@ export async function wpFetch(path, opts = {}) {
         if (__DEV__) console.log('[wpFetch] nonce inválido → refresh');
         await ensureNonce(true);
         response = await doFetch();
+
+        if ((response.status === 401 || response.status === 403) && sanitizeNonce(_nonce)) {
+          const fallbackUrl = withNonceQuery(url, sanitizeNonce(_nonce));
+          response = await fetch(fallbackUrl, {
+            ...opts,
+            headers: {
+              ...(opts.headers || {}),
+              Referer: BASE,
+              'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'include',
+          });
+        }
       }
     } catch (_) {}
   }
