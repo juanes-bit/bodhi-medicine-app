@@ -2,13 +2,14 @@ import { wpGet, wpPost } from "./wp";
 
 export async function listMyCourses() {
   try {
-    const res = await wpGet("/wp-json/bodhi/v1/my-courses", { nonce: false });
+    const res = await wpGet("/wp-json/bodhi-mobile/v1/my-courses", { nonce: false });
     const items = Array.isArray(res?.items) ? res.items : [];
     const itemsOwned = Array.isArray(res?.itemsOwned)
       ? res.itemsOwned
       : items.filter((item) => item?.isOwned);
     const total = Number.isFinite(res?.total) ? res.total : items.length;
     const owned = Number.isFinite(res?.owned) ? res.owned : itemsOwned.length;
+    console.log("[home] courses", { owned, total });
     return { items, itemsOwned, total, owned };
   } catch (error) {
     console.log("[listMyCourses error]", error?.message || error);
