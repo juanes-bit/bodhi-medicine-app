@@ -233,6 +233,14 @@ const HomeScreen = () => {
             </Text>
           </TouchableOpacity>
         </View>
+        <View style={styles.sectionWrapper}>
+          {title({ title: "Mis cursos" })}
+          {acquiredCourses(acquiredItems)}
+        </View>
+        <View style={styles.sectionWrapper}>
+          {title({ title: "Cursos Populares" })}
+          {popularCourses(popularCoursesData)}
+        </View>
       </View>
     );
   }
@@ -624,6 +632,9 @@ const styles = StyleSheet.create({
   continueWatchingContainer: {
     marginTop: Sizes.fixPadding * 2.5,
     paddingHorizontal: Sizes.fixPadding * 2,
+  },
+  sectionWrapper: {
+    marginTop: Sizes.fixPadding * 2.5,
   },
   continueHeader: {
     flexDirection: 'row',
