@@ -281,6 +281,9 @@ const HomeScreen = () => {
         });
       };
 
+      const ratingCount = Number(item.courseNumberOfRating ?? 0);
+      const showRating = Number.isFinite(ratingCount) && ratingCount > 0;
+
       return (
         <TouchableOpacity
           onPress={handlePress}
@@ -300,19 +303,21 @@ const HomeScreen = () => {
               {item.courseCategory}
             </Text>
             <View style={{ backgroundColor: "gray", height: 0.2 }} />
-            <View
-              style={{ flexDirection: "row", alignItems: "center", marginTop: Sizes.fixPadding - 5.0 }}
-            >
-              <Text style={{ ...Fonts.black15Bold }}>
-                {item.courseRating}
-              </Text>
-              <MaterialIcons name="star" size={17} color="black" />
-              <Text
-                style={{ ...Fonts.black15Bold, marginLeft: Sizes.fixPadding - 5.0 }}
+            {showRating ? (
+              <View
+                style={{ flexDirection: "row", alignItems: "center", marginTop: Sizes.fixPadding - 5.0 }}
               >
-                ({item.courseNumberOfRating})
-              </Text>
-            </View>
+                <Text style={{ ...Fonts.black15Bold }}>
+                  {item.courseRating}
+                </Text>
+                <MaterialIcons name="star" size={17} color="black" />
+                <Text
+                  style={{ ...Fonts.black15Bold, marginLeft: Sizes.fixPadding - 5.0 }}
+                >
+                  ({ratingCount})
+                </Text>
+              </View>
+            ) : null}
             <View style={{ marginTop: Sizes.fixPadding }} />
           </View>
         </TouchableOpacity>
@@ -358,6 +363,9 @@ const HomeScreen = () => {
         });
       };
 
+      const ratingCount = Number(item.courseNumberOfRating ?? 0);
+      const showRating = Number.isFinite(ratingCount) && ratingCount > 0;
+
       return (
         <TouchableOpacity
           activeOpacity={0.9}
@@ -390,17 +398,19 @@ const HomeScreen = () => {
               {item.courseName}
             </Text>
             <View style={{ backgroundColor: "gray", height: 0.2 }} />
-            <View
-              style={{ flexDirection: "row", alignItems: "center", marginTop: Sizes.fixPadding - 5.0 }}
-            >
-              <Text style={{ ...Fonts.black15Bold }}>{item.courseRating}</Text>
-              <MaterialIcons name="star" size={17} color="black" style={{ marginLeft: 4 }} />
-              <Text
-                style={{ ...Fonts.black15Bold, marginLeft: Sizes.fixPadding - 5.0 }}
+            {showRating ? (
+              <View
+                style={{ flexDirection: "row", alignItems: "center", marginTop: Sizes.fixPadding - 5.0 }}
               >
-                ({item.courseNumberOfRating})
-              </Text>
-            </View>
+                <Text style={{ ...Fonts.black15Bold }}>{item.courseRating}</Text>
+                <MaterialIcons name="star" size={17} color="black" style={{ marginLeft: 4 }} />
+                <Text
+                  style={{ ...Fonts.black15Bold, marginLeft: Sizes.fixPadding - 5.0 }}
+                >
+                  ({ratingCount})
+                </Text>
+              </View>
+            ) : null}
           </View>
         </TouchableOpacity>
       );
