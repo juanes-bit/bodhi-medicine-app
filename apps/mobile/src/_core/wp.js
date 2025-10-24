@@ -66,6 +66,9 @@ const resolveWpUrl = (path) => {
 
 async function fetchJson(path, { method = 'GET', headers = {}, body } = {}) {
   const fullUrl = resolveWpUrl(path);
+  const isBodhiEndpoint = fullUrl.includes('/wp-json/bodhi/v1/');
+  const isWpEndpoint = fullUrl.includes('/wp-json/');
+  const needsNonce = isWpEndpoint && !isBodhiEndpoint;
 
   const baseHeaders = { Accept: 'application/json', ...headers };
 
@@ -73,11 +76,15 @@ async function fetchJson(path, { method = 'GET', headers = {}, body } = {}) {
   if (cookie && !baseHeaders.Cookie) {
     baseHeaders.Cookie = cookie;
   }
-  if (WP_NONCE && !baseHeaders['X-WP-Nonce']) {
+
+  if (needsNonce && !WP_NONCE) {
+    await ensureNonce();
+  }
+  if (needsNonce && WP_NONCE && !baseHeaders['X-WP-Nonce']) {
     baseHeaders['X-WP-Nonce'] = WP_NONCE;
   }
 
-  const doFetch = async (withNonce = true) => {
+  const doFetch = async (withNonce = baseHeaders.hasOwnProperty('X-WP-Nonce')) => {
     const finalHeaders = { ...baseHeaders };
     if (!withNonce) delete finalHeaders['X-WP-Nonce'];
 
@@ -91,6 +98,8 @@ async function fetchJson(path, { method = 'GET', headers = {}, body } = {}) {
     const data = await parseResponseBody(response);
 
     if (
+      needsNonce &&
+      withNonce &&
       (response.status === 401 || response.status === 403) &&
       data &&
       typeof data === 'object' &&
@@ -98,6 +107,7 @@ async function fetchJson(path, { method = 'GET', headers = {}, body } = {}) {
     ) {
       const refreshed = await refreshNonce();
       if (refreshed && withNonce) {
+        baseHeaders['X-WP-Nonce'] = refreshed;
         const retryHeaders = { ...baseHeaders, 'X-WP-Nonce': refreshed };
         const retryResponse = await fetch(fullUrl, {
           method,
