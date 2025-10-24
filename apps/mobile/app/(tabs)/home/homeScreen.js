@@ -68,16 +68,14 @@ const HomeScreen = () => {
           setUser(profile);
         }
 
-        const res = await listMyCourses({ profile }).catch(() => ({ items: [] }));
+        const res = await listMyCourses({ perPage: 50, allowLocked: true }).catch(() => ({ items: [] }));
         if (cancelled) return;
 
         const all = Array.isArray(res?.items) ? res.items : [];
-        const mine = all.filter((item) => item?.isOwned);
+        const mine = Array.isArray(res?.itemsOwned) ? res.itemsOwned : all.filter((item) => item?.isOwned);
 
         if (__DEV__) {
-          console.log('[home] total=', all.length, 'owned=', mine.length,
-            all.slice(0, 5).map((x) => ({ id: x.id, access: x.access, isOwned: x.isOwned, r: x._debug_access_reason })),
-          );
+          console.log('[home] total=', res?.total ?? all.length, 'owned=', res?.owned ?? mine.length, all);
         }
 
         setItems(all);
@@ -101,16 +99,11 @@ const HomeScreen = () => {
   
 
   const popularCoursesData = useMemo(() => {
-    if (items.length) {
-      const locked = items.filter((item) => !item?.isOwned);
-      if (locked.length) return locked;
-      return items;
-    }
-    return POPULAR_COURSES_FALLBACK;
+    return items.length ? items : POPULAR_COURSES_FALLBACK;
   }, [items]);
 
-  const acquiredItems = owned.length ? owned : items;
-  const acquiredSectionTitle = owned.length ? "Cursos adquiridos" : "Mis cursos";
+  const acquiredItems = owned;
+  const acquiredSectionTitle = "Mis cursos";
 
   const firstName =
     typeof user?.name === "string" && user.name.trim()
