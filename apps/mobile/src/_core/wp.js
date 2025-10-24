@@ -11,10 +11,16 @@ const COOKIE_CACHE_KEY = 'wp_cookie_cache';
 let WP_COOKIE = null;
 let WP_NONCE = null;
 let nonceRefreshPromise = null;
+let WP_NONCE_TS = 0;
+
+const NONCE_TTL_MS = 10 * 60 * 1000;
 
 export const setWpSession = ({ cookie, nonce }) => {
   if (cookie) WP_COOKIE = cookie;
-  if (nonce) WP_NONCE = nonce;
+  if (nonce) {
+    WP_NONCE = nonce;
+    WP_NONCE_TS = Date.now();
+  }
 };
 
 const serializeCookieJar = (jar = {}) =>
@@ -111,7 +117,7 @@ async function fetchJson(path, { method = 'GET', headers = {}, body, nonce } = {
       typeof data === 'object' &&
       (data.code === 'rest_cookie_invalid_nonce' || data.code === 'rest_forbidden')
     ) {
-      const refreshed = await refreshNonce();
+      const refreshed = await ensureNonce(true);
       if (refreshed && withNonce) {
         baseHeaders['X-WP-Nonce'] = refreshed;
         const retryHeaders = { ...baseHeaders, 'X-WP-Nonce': refreshed };
@@ -168,6 +174,25 @@ async function refreshNonce() {
       const json = await parseResponseBody(res);
       if (res.ok && json && typeof json === 'object' && json.nonce) {
         WP_NONCE = json.nonce;
+        WP_NONCE_TS = Date.now();
+        return WP_NONCE;
+      }
+    } catch {
+      // ignore
+    }
+
+    try {
+      const res = await fetch(`${BASE}/wp-json/bm/v1/form-login?refresh_nonce=1`, {
+        method: 'GET',
+        headers: {
+          Cookie: WP_COOKIE,
+        },
+        credentials: 'include',
+      });
+      const json = await parseResponseBody(res);
+      if (res.ok && json && typeof json === 'object' && json.nonce) {
+        WP_NONCE = json.nonce;
+        WP_NONCE_TS = Date.now();
         return WP_NONCE;
       }
     } catch {
@@ -187,6 +212,7 @@ async function refreshNonce() {
       const json = await parseResponseBody(res);
       if (res.ok && json && typeof json === 'object' && json.nonce) {
         WP_NONCE = json.nonce;
+        WP_NONCE_TS = Date.now();
         return WP_NONCE;
       }
     } catch {
@@ -194,6 +220,7 @@ async function refreshNonce() {
     }
 
     WP_NONCE = null;
+    WP_NONCE_TS = 0;
     return null;
   })();
 
@@ -205,9 +232,17 @@ async function refreshNonce() {
 }
 
 export async function ensureNonce(force = false) {
-  if (force) WP_NONCE = null;
-  if (WP_NONCE && !force) return WP_NONCE;
-  return refreshNonce();
+  if (!force && WP_NONCE && Date.now() - WP_NONCE_TS < NONCE_TTL_MS) {
+    return WP_NONCE;
+  }
+
+  if (force) {
+    WP_NONCE = null;
+    WP_NONCE_TS = 0;
+  }
+
+  const refreshed = await refreshNonce();
+  return refreshed;
 }
 
 export async function getLoginCookie() {
