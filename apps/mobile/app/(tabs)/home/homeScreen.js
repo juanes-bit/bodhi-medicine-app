@@ -238,7 +238,7 @@ const HomeScreen = () => {
           {acquiredCourses(acquiredItems)}
         </View>
         <View style={styles.sectionWrapper}>
-          {title({ title: "Cursos Populares" })}
+          {title({ title: "Cursos populares" })}
           {popularCourses(popularCoursesData)}
         </View>
       </View>
@@ -635,6 +635,7 @@ const styles = StyleSheet.create({
   },
   sectionWrapper: {
     marginTop: Sizes.fixPadding * 2.5,
+    paddingHorizontal: Sizes.fixPadding * 2,
   },
   continueHeader: {
     flexDirection: 'row',
