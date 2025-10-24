@@ -57,56 +57,47 @@ const HomeScreen = () => {
   }, [navigation]);
 
   useEffect(() => {
-    let cancelled = false;
+    let isMounted = true;
+
     (async () => {
-      if (cancelled) return;
+      if (!isMounted) return;
 
       setLoading(true);
 
       try {
         const profile = await me().catch(() => null);
-        if (!cancelled && profile) {
+        if (isMounted && profile) {
           setUser(profile);
         }
 
-        const coursesRes = await listMyCourses().catch((error) => {
-          console.log('[listMyCourses error]', error);
-          return { items: [], itemsOwned: [], owned: 0, total: 0 };
-        });
-
-        if (cancelled) return;
-
-        const all = Array.isArray(coursesRes?.items) ? coursesRes.items : [];
-        const mine =
-          Array.isArray(coursesRes?.itemsOwned) && coursesRes.itemsOwned.length
-            ? coursesRes.itemsOwned
-            : all.filter((item) => item?.isOwned);
+        const { items = [], itemsOwned = [], total = 0, owned = 0 } = await listMyCourses();
+        if (!isMounted) return;
 
         if (__DEV__) {
-          console.log('[home] courses', {
-            owned: coursesRes?.owned ?? mine.length,
-            total: coursesRes?.total ?? all.length,
-          });
+          console.log('[home] courses', { total, owned });
         }
 
-        setItems(all);
-        setOwned(mine);
+        setItems(items);
+        setOwned(itemsOwned);
         setCoursesError(null);
       } catch (error) {
-        console.log('[home] error', error);
-        if (!cancelled) {
+        if (__DEV__) {
+          console.log('[home] list error', error);
+        }
+        if (isMounted) {
           setCoursesError(String(error?.message || error));
           setItems([]);
           setOwned([]);
         }
       } finally {
-        if (!cancelled) {
+        if (isMounted) {
           setLoading(false);
         }
       }
     })();
+
     return () => {
-      cancelled = true;
+      isMounted = false;
     };
   }, []);
 
