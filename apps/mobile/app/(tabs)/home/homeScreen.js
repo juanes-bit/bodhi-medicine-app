@@ -341,17 +341,13 @@ const HomeScreen = () => {
   }
 
   function acquiredCourses(list = []) {
-    const arr = Array.isArray(list) ? list : [];
+    const arr = Array.isArray(list) ? list.filter((course) => course?.isOwned) : [];
     if (!arr.length) {
       return <EmptyState text="Aún no tienes cursos adquiridos." />;
     }
 
     const renderItem = ({ item }) => {
       const handlePress = () => {
-        if (!item?.isOwned) {
-          Alert.alert("Bodhi Medicine", "Aún no tienes acceso a este curso.");
-          return;
-        }
         navigation.push("courseDetail/courseDetailScreen", {
           image: item.image,
           courseName: item.courseName,
