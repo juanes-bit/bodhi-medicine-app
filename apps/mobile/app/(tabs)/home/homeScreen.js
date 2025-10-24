@@ -18,17 +18,23 @@ import { useNavigation } from "expo-router";
 import { listMyCourses, me } from "../../../src/_core/bodhi";
 
 const width = Dimensions.get("window").width;
-const itemWidth = Math.round(width * 0.7);
+const itemWidth = Math.round(width * 0.8);
 
 const carouselItems = [
   {
     image: require("../../../assets/images/new_course/new_course_5.png"),
+    title: "Bodhi Medicine Training",
+    subtitle: "Accede a los módulos grabados para una conexión profunda cuerpo-mente.",
   },
   {
     image: require("../../../assets/images/new_course/new_course_4.png"),
+    title: "Programa HeartMath",
+    subtitle: "Coherencia corazón-cerebro para equilibrar tu sistema nervioso.",
   },
   {
     image: require("../../../assets/images/new_course/new_course_2.png"),
+    title: "Círculo Bodhi Medicine",
+    subtitle: "Descubre prácticas conscientes para transformar tu salud diaria.",
   },
 ];
 
@@ -193,8 +199,10 @@ const HomeScreen = () => {
             {title({ title: "Cursos populares" })}
             {popularCourses(popularCoursesData)}
           </View>
-          {title({ title: "Inscríbete" })}
-          {instructors()}
+          <View style={styles.sectionWrapper}>
+            {title({ title: "Inscríbete" })}
+            {instructors()}
+          </View>
         </View>
       </CollapsingToolbar>
     </View>
@@ -237,33 +245,40 @@ const HomeScreen = () => {
             </Text>
           </TouchableOpacity>
         </View>
+        <FlatList
+          data={modulesList}
+          keyExtractor={(item) => `${item.id}`}
+          renderItem={renderItem}
+          showsHorizontalScrollIndicator={false}
+          horizontal
+          contentContainerStyle={styles.modulesListContainer}
+        />
       </View>
     );
   }
 
   function autoScroller() {
     const renderItem = ({ item }) => (
-      <ImageBackground
-        source={item.image}
-        style={{
-          width: itemWidth - 10,
-          height: 200,
-          alignItems: "center",
-          justifyContent: "center",
-          paddingHorizontal: Sizes.fixPadding,
-        }}
-        borderRadius={Sizes.fixPadding - 5.0}
+      <TouchableOpacity
+        activeOpacity={0.9}
+        style={styles.heroCardWrapper}
       >
-        <Text numberOfLines={1} style={{ ...Fonts.white25Bold }}>
-          Bodhi Medicine Training 2026
-        </Text>
-        <Text
-          numberOfLines={2}
-          style={{ ...Fonts.white15Regular, textAlign: "center" }}
+        <ImageBackground
+          source={item.image}
+          style={styles.heroImage}
+          imageStyle={styles.heroImageStyle}
         >
-          Access the 5 recorded modules for a deep connection between body and mind.
-        </Text>
-      </ImageBackground>
+          <View style={styles.heroOverlay} />
+          <View style={styles.heroContent}>
+            <Text numberOfLines={1} style={styles.heroTitle}>
+              {item.title}
+            </Text>
+            <Text numberOfLines={2} style={styles.heroSubtitle}>
+              {item.subtitle}
+            </Text>
+          </View>
+        </ImageBackground>
+      </TouchableOpacity>
     );
 
     return (
@@ -274,7 +289,8 @@ const HomeScreen = () => {
         itemWidth={itemWidth}
         renderItem={renderItem}
         autoplay
-        containerCustomStyle={{ marginTop: Sizes.fixPadding * 4.0 }}
+        containerCustomStyle={{ marginTop: Sizes.fixPadding * 3.0 }}
+        contentContainerCustomStyle={{ paddingHorizontal: Sizes.fixPadding * 1.5 }}
         autoplayInterval={4000}
       />
     );
@@ -629,6 +645,10 @@ const styles = StyleSheet.create({
     marginTop: Sizes.fixPadding * 2.5,
     paddingHorizontal: Sizes.fixPadding * 2,
   },
+  modulesListContainer: {
+    paddingVertical: Sizes.fixPadding * 2,
+    paddingHorizontal: Sizes.fixPadding * 1.5,
+  },
   sectionWrapper: {
     marginTop: Sizes.fixPadding * 2.5,
     paddingHorizontal: Sizes.fixPadding * 2,
@@ -636,6 +656,39 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...Fonts.indigoColor18Bold,
     marginBottom: Sizes.fixPadding,
+    paddingHorizontal: 0,
+  },
+  heroCardWrapper: {
+    width: itemWidth,
+    marginHorizontal: Sizes.fixPadding,
+    borderRadius: Sizes.fixPadding * 1.8,
+    overflow: 'hidden',
+    ...CommonStyles.shadow,
+  },
+  heroImage: {
+    height: 210,
+    justifyContent: 'flex-end',
+  },
+  heroImageStyle: {
+    borderRadius: Sizes.fixPadding * 1.8,
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(78, 112, 166, 0.45)',
+  },
+  heroContent: {
+    paddingHorizontal: Sizes.fixPadding * 1.5,
+    paddingVertical: Sizes.fixPadding * 1.8,
+  },
+  heroTitle: {
+    ...Fonts.white19Bold,
+    fontSize: 22,
+    marginBottom: Sizes.fixPadding / 2,
+  },
+  heroSubtitle: {
+    ...Fonts.white15Regular,
+    lineHeight: 20,
+    opacity: 0.9,
   },
   continueHeader: {
     flexDirection: 'row',
