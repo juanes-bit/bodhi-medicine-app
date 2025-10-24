@@ -185,10 +185,14 @@ const HomeScreen = () => {
         <View>
           {autoScroller()}
           {categories()}
-          {title({ title: "Cursos Populares" })}
-          {popularCourses(popularCoursesData)}
-          {title({ title: acquiredSectionTitle })}
-          {acquiredCourses(acquiredItems)}
+          <View style={styles.sectionWrapper}>
+            {title({ title: "Mis cursos" })}
+            {acquiredCourses(acquiredItems)}
+          </View>
+          <View style={styles.sectionWrapper}>
+            {title({ title: "Cursos populares" })}
+            {popularCourses(popularCoursesData)}
+          </View>
           {title({ title: "Inscríbete" })}
           {instructors()}
         </View>
@@ -232,14 +236,6 @@ const HomeScreen = () => {
               Tu recorrido en Bodhi Medicine
             </Text>
           </TouchableOpacity>
-        </View>
-        <View style={styles.sectionWrapper}>
-          {title({ title: "Mis cursos" })}
-          {acquiredCourses(acquiredItems)}
-        </View>
-        <View style={styles.sectionWrapper}>
-          {title({ title: "Cursos populares" })}
-          {popularCourses(popularCoursesData)}
         </View>
       </View>
     );
@@ -493,7 +489,7 @@ const HomeScreen = () => {
   }
 
   function title({ title }) {
-    return <Text style={{ ...Fonts.indigoColor18Bold }}>{title}</Text>;
+    return <Text style={styles.sectionTitle}>{title}</Text>;
   }
 };
 
@@ -636,6 +632,10 @@ const styles = StyleSheet.create({
   sectionWrapper: {
     marginTop: Sizes.fixPadding * 2.5,
     paddingHorizontal: Sizes.fixPadding * 2,
+  },
+  sectionTitle: {
+    ...Fonts.indigoColor18Bold,
+    marginBottom: Sizes.fixPadding,
   },
   continueHeader: {
     flexDirection: 'row',
