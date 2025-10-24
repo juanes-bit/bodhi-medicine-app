@@ -162,61 +162,64 @@ async function refreshNonce() {
       return null;
     }
 
-    try {
-      const res = await fetch(`${BASE}/wp-json/bodhi/v1/nonce`, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          Cookie: WP_COOKIE,
-        },
-        credentials: 'include',
-      });
-      const json = await parseResponseBody(res);
-      if (res.ok && json && typeof json === 'object' && json.nonce) {
-        WP_NONCE = json.nonce;
-        WP_NONCE_TS = Date.now();
-        return WP_NONCE;
+    const nonceCandidates = [
+      '/wp-json/bodhi-mobile/v1/nonce',
+      '/wp-json/bodhi/v1/nonce',
+    ];
+
+    for (const path of nonceCandidates) {
+      try {
+        const res = await fetch(`${BASE}${path}`, {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            Cookie: WP_COOKIE,
+            Referer: `${BASE}/`,
+          },
+          credentials: 'include',
+        });
+        const json = await parseResponseBody(res);
+        if (res.ok && json && typeof json === 'object' && json.nonce) {
+          WP_NONCE = json.nonce;
+          WP_NONCE_TS = Date.now();
+          return WP_NONCE;
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
 
-    try {
-      const res = await fetch(`${BASE}/wp-json/bm/v1/form-login?refresh_nonce=1`, {
-        method: 'GET',
-        headers: {
-          Cookie: WP_COOKIE,
-        },
-        credentials: 'include',
-      });
-      const json = await parseResponseBody(res);
-      if (res.ok && json && typeof json === 'object' && json.nonce) {
-        WP_NONCE = json.nonce;
-        WP_NONCE_TS = Date.now();
-        return WP_NONCE;
-      }
-    } catch {
-      // ignore
-    }
-
-    try {
-      const res = await fetch(`${BASE}/wp-json/bm/v1/form-login`, {
+    const secondaryCandidates = [
+      { path: '/wp-json/bm/v1/form-login?refresh_nonce=1', method: 'GET', body: null },
+      {
+        path: '/wp-json/bm/v1/form-login',
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Cookie: WP_COOKIE,
-        },
         body: JSON.stringify({ refresh_nonce: true }),
-        credentials: 'include',
-      });
-      const json = await parseResponseBody(res);
-      if (res.ok && json && typeof json === 'object' && json.nonce) {
-        WP_NONCE = json.nonce;
-        WP_NONCE_TS = Date.now();
-        return WP_NONCE;
+      },
+    ];
+
+    for (const candidate of secondaryCandidates) {
+      try {
+        const res = await fetch(`${BASE}${candidate.path}`, {
+          method: candidate.method,
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Cookie: WP_COOKIE,
+            Referer: `${BASE}/`,
+          },
+          body: candidate.body,
+          credentials: 'include',
+        });
+        const json = await parseResponseBody(res);
+        if (res.ok && json && typeof json === 'object' && json.nonce) {
+          WP_NONCE = json.nonce;
+          WP_NONCE_TS = Date.now();
+          return WP_NONCE;
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
 
     WP_NONCE = null;
