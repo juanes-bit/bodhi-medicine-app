@@ -210,18 +210,7 @@ const HomeScreen = () => {
     );
 
     return (
-      <View style={{ marginTop: Sizes.fixPadding * 3.0 }}>
-        {title({ title: "Fechas de los módulos de la formación BM 2026" })}
-        <FlatList
-          data={modulesList}
-          keyExtractor={(item) => `${item.id}`}
-          renderItem={renderItem}
-          showsHorizontalScrollIndicator={false}
-          horizontal
-          contentContainerStyle={{
-            paddingVertical: Sizes.fixPadding * 2.0,
-          }}
-        />
+      <View style={{ marginTop: Sizes.fixPadding * 2.0 }}>
         <View style={styles.continueWatchingContainer}>
           <View style={styles.continueHeader}>
             <Text style={styles.continueTitle}>Continuar viendo</Text>
