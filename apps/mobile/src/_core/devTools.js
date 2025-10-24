@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export async function resetWpSession() {
   try {
-    await AsyncStorage.multiRemove(["wp_nonce", "wp_uid", "wp_token"]);
+    await AsyncStorage.multiRemove(["wp_nonce", "wp_uid", "wp_token", "wp_cookie_cache"]);
     await CookieManager.clearAll();
     if (Platform.OS === "ios") {
       await CookieManager.clearAll(true);
