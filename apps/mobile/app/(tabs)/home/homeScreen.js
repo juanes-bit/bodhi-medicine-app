@@ -71,19 +71,21 @@ const HomeScreen = () => {
 
         const coursesRes = await listMyCourses().catch((error) => {
           console.log('[listMyCourses error]', error);
-          return { items: [], itemsOwned: [], owned: 0, total: 0, show: 0 };
+          return { items: [], itemsOwned: [], owned: 0, total: 0 };
         });
 
         if (cancelled) return;
 
         const all = Array.isArray(coursesRes?.items) ? coursesRes.items : [];
-        const mine = Array.isArray(coursesRes?.itemsOwned) ? coursesRes.itemsOwned : [];
+        const mine =
+          Array.isArray(coursesRes?.itemsOwned) && coursesRes.itemsOwned.length
+            ? coursesRes.itemsOwned
+            : all.filter((item) => item?.isOwned);
 
         if (__DEV__) {
           console.log('[home] courses', {
             owned: coursesRes?.owned ?? mine.length,
             total: coursesRes?.total ?? all.length,
-            show: coursesRes?.show ?? all.length,
           });
         }
 
