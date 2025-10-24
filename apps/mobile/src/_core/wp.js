@@ -1,16 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CookieManager from '@react-native-cookies/cookies';
 
-const WP_BASE = 'https://staging.bodhimedicine.com';
-export const BASE = WP_BASE;
+export const BASE = 'https://staging.bodhimedicine.com';
 
 const USER_ID_KEY = 'wp_user_id';
 const NONCE_ENDPOINT = '/wp-json/bodhi/v1/nonce';
-const NONCE_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas
 
-let REST_NONCE = null;
-let REST_NONCE_TS = 0;
-let nonceRefreshPromise = null;
+let CACHED_NONCE = null;
 
 const normalizeNonce = (value) => {
   if (!value) return null;
@@ -21,16 +17,8 @@ const normalizeNonce = (value) => {
   }
 };
 
-const isNonceFresh = () => Boolean(REST_NONCE) && Date.now() - REST_NONCE_TS < NONCE_TTL_MS;
-
-const stampNonce = (nonce) => {
-  REST_NONCE = nonce || null;
-  REST_NONCE_TS = nonce ? Date.now() : 0;
-  return REST_NONCE;
-};
-
 async function buildCookieHeader() {
-  const all = await CookieManager.get(WP_BASE);
+  const all = await CookieManager.get(BASE);
   const pairs = [];
   for (const cookie of Object.values(all || {})) {
     if (cookie?.value) {
@@ -40,12 +28,8 @@ async function buildCookieHeader() {
   return pairs.join('; ');
 }
 
-const toAbsoluteUrl = (input) => {
-  if (!input) return new URL(WP_BASE);
-  if (typeof input === 'string' && input.startsWith('http')) return new URL(input);
-  const path = typeof input === 'string' ? (input.startsWith('/') ? input : `/${input}`) : input;
-  return new URL(path, `${WP_BASE}/`);
-};
+const toAbsoluteUrl = (path) =>
+  path && path.startsWith('http') ? path : `${BASE}${path.startsWith('/') ? path : `/${path}`}`;
 
 const safeJson = async (res) => {
   try {
@@ -56,35 +40,26 @@ const safeJson = async (res) => {
 };
 
 export async function ensureNonce(force = false) {
-  if (force) stampNonce(null);
-  if (isNonceFresh()) return REST_NONCE;
-  if (nonceRefreshPromise) return nonceRefreshPromise;
-
-  nonceRefreshPromise = (async () => {
-    try {
-      const res = await fetch(`${WP_BASE}${NONCE_ENDPOINT}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          Referer: `${WP_BASE}/`,
-          Accept: 'application/json',
-        },
-      });
-      if (!res.ok) throw new Error(`nonce ${res.status}`);
-      const data = await res.json().catch(() => ({}));
-      const nonce = normalizeNonce(data?.nonce);
-      return stampNonce(nonce);
-    } catch (error) {
-      console.log('[wpFetch] nonce fetch failed', error?.message || error);
-      return stampNonce(null);
-    }
-  })();
+  if (force) CACHED_NONCE = null;
+  if (CACHED_NONCE && !force) return CACHED_NONCE;
 
   try {
-    return await nonceRefreshPromise;
-  } finally {
-    nonceRefreshPromise = null;
+    const res = await fetch(`${BASE}${NONCE_ENDPOINT}`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { Accept: 'application/json' },
+    });
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      CACHED_NONCE = normalizeNonce(data?.nonce) ?? null;
+      return CACHED_NONCE;
+    }
+  } catch {
+    // ignore
   }
+
+  CACHED_NONCE = null;
+  return null;
 }
 
 export async function getLoginCookie() {
@@ -94,11 +69,11 @@ export async function getLoginCookie() {
 
 export async function wpLogin(email, password) {
   await CookieManager.clearAll(true);
-  stampNonce(null);
+  CACHED_NONCE = null;
 
-  const res = await fetch(`${WP_BASE}/wp-json/bm/v1/form-login`, {
+  const res = await fetch(`${BASE}/wp-json/bm/v1/form-login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Referer: `${WP_BASE}/` },
+    headers: { 'Content-Type': 'application/json', Referer: `${BASE}/` },
     body: JSON.stringify({ email, password }),
     credentials: 'include',
   });
@@ -110,9 +85,7 @@ export async function wpLogin(email, password) {
 
   const responseNonce = normalizeNonce(data?.nonce);
   if (responseNonce) {
-    stampNonce(responseNonce);
-  } else {
-    await ensureNonce(true);
+    CACHED_NONCE = responseNonce;
   }
 
   if (data?.user?.id) {
@@ -123,71 +96,88 @@ export async function wpLogin(email, password) {
 }
 
 export async function wpFetch(path, opts = {}) {
+  const {
+    method = 'GET',
+    headers = {},
+    body,
+    includeNonce = false,
+    requireNonce = false,
+    raw = false,
+  } = opts;
+
+  if (!path) throw new Error('path_required');
+
   const url = toAbsoluteUrl(path);
-  const headers = new Headers(opts.headers || {});
+  const baseHeaders = { Accept: 'application/json', ...headers };
+  if (!('Referer' in baseHeaders) && !('referer' in baseHeaders)) {
+    baseHeaders.Referer = `${BASE}/`;
+  }
 
   const cookieHeader = await buildCookieHeader();
-  if (cookieHeader && !headers.has('Cookie')) headers.set('Cookie', cookieHeader);
-
-  if (!headers.has('Referer')) headers.set('Referer', `${WP_BASE}/`);
-  if (!headers.has('Accept')) headers.set('Accept', 'application/json');
-
-  const needsNonce = url.pathname.startsWith('/wp-json/');
-  let nonce = null;
-  if (needsNonce) {
-    nonce = normalizeNonce(REST_NONCE) || (await ensureNonce());
-    if (nonce) {
-      headers.set('X-WP-Nonce', nonce);
-      url.searchParams.set('_wpnonce', nonce);
-    }
-    if (!headers.has('X-Requested-With')) headers.set('X-Requested-With', 'XMLHttpRequest');
+  if (cookieHeader && !('Cookie' in baseHeaders)) {
+    baseHeaders.Cookie = cookieHeader;
   }
 
-  const requestInit = {
-    ...opts,
-    method: opts.method ?? 'GET',
-    body: opts.body,
-    headers,
-    credentials: 'include',
-  };
+  let nonce = null;
+  if (includeNonce || requireNonce) {
+    nonce = await ensureNonce();
+    if (requireNonce && !nonce) throw new Error('nonce_unavailable');
+    if (nonce) baseHeaders['X-WP-Nonce'] = nonce;
+  }
 
-  let response = await fetch(url.toString(), requestInit);
+  const doFetch = async (withNonce) => {
+    const finalHeaders = { ...baseHeaders };
+    if (!withNonce) delete finalHeaders['X-WP-Nonce'];
 
-  if (needsNonce && response.status === 403) {
-    const text = await response.clone().text();
-    if (text.includes('rest_cookie_invalid_nonce')) {
-      const fresh = await ensureNonce(true);
-      if (fresh) {
-        headers.set('X-WP-Nonce', fresh);
-        url.searchParams.set('_wpnonce', fresh);
-        response = await fetch(url.toString(), {
-          ...requestInit,
-          headers,
-        });
+    const res = await fetch(url, {
+      method,
+      headers: finalHeaders,
+      body,
+      credentials: 'include',
+    });
+
+    if (res.status === 401 || res.status === 403) {
+      try {
+        const payload = await res.clone().json();
+        if (payload?.code === 'rest_cookie_invalid_nonce') {
+          CACHED_NONCE = null;
+          if (withNonce) {
+            return doFetch(false);
+          }
+        }
+      } catch {
+        // ignore
       }
     }
-  }
 
-  if (opts.raw) return response;
+    return res;
+  };
 
-  const data = await safeJson(response.clone());
+  const response = await doFetch(Boolean(nonce));
+
+  if (raw) return response;
+
   if (!response.ok) {
-    const error = new Error(data?.message || response.statusText);
-    error.status = response.status;
-    error.data = data;
-    throw error;
+    const text = await response.text().catch(() => '');
+    throw new Error(text || `${response.status}`);
   }
 
-  return data;
+  if (response.status === 204) return null;
+  return safeJson(response);
 }
 
-export const wpGet = (path) => wpFetch(path, { method: 'GET' });
+export const wpGet = (path, options = {}) => wpFetch(path, { ...options, method: 'GET' });
 
-export const wpPost = (path, data) =>
+export const wpPost = (path, data, options = {}) =>
   wpFetch(path, {
+    ...options,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
     body: JSON.stringify(data ?? {}),
+    requireNonce: true,
   });
 
 export async function wpGetStoredUserId() {
@@ -202,5 +192,7 @@ export async function wpGetStoredUserId() {
 export async function wpSetStoredUserId(id) {
   try {
     await AsyncStorage.setItem(USER_ID_KEY, String(id));
-  } catch {}
+  } catch {
+    // ignore
+  }
 }

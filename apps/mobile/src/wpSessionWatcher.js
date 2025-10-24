@@ -13,7 +13,10 @@ export function watchSession(onExpired) {
       }
 
       try {
-        const res = await wpFetch("/wp-json/wp/v2/users/me", { method: "GET" });
+        const res = await wpFetch("/wp-json/wp/v2/users/me", {
+          method: "GET",
+          raw: true,
+        });
         if (res.status === 401 && typeof onExpired === "function") {
           onExpired();
         }
