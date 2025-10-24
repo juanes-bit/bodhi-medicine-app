@@ -76,7 +76,9 @@ export async function ensureNonce(force = false) {
       });
       if (!res.ok) continue;
       const data = await res.json().catch(() => ({}));
-      const n = data?.nonce ?? data?._wp_nonce ?? data?.x_wp_nonce ?? null;
+      const n = sanitizeNonce(
+        data?.nonce ?? data?._wp_nonce ?? data?.x_wp_nonce ?? data?.data?.nonce ?? null,
+      );
       if (n) {
         _nonce = n;
         await AsyncStorage.setItem(NONCE_KEY, _nonce);
@@ -107,8 +109,11 @@ export async function wpLogin(email, password) {
   }
 
   if (data?.nonce) {
-    _nonce = data.nonce;
-    await AsyncStorage.setItem(NONCE_KEY, _nonce);
+    const n = sanitizeNonce(data.nonce);
+    if (n) {
+      _nonce = n;
+      await AsyncStorage.setItem(NONCE_KEY, _nonce);
+    }
   }
 
   if (data?.user?.id) {
