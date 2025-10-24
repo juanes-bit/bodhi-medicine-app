@@ -1,8 +1,7 @@
 import { wpGet, wpPost, ensureNonce } from "./wpClient";
 
 const OWNED = new Set(["owned", "member", "free", "owned_by_product"]);
-const asOwned = (access) =>
-  OWNED.has(String(access ?? "").toLowerCase()) ? "owned" : "locked";
+const asOwned = (value) => OWNED.has(String(value ?? "").toLowerCase());
 
 function extractCoverFromYoast(yoast) {
   try {
@@ -35,26 +34,27 @@ const plain = (text) =>
   typeof text === "string" ? text.replace(/<[^>]+>/g, "").trim() : "";
 
 export function adaptCourseCard(course = {}) {
-  const status = course.access ?? course.access_status ?? course.status;
-  const hasFlag = [
-    course.is_owned,
-    course.isOwned,
-    course.owned,
-    course.member,
-    course.access_granted,
-    course.user_has_access,
-  ].some(Boolean);
+  const hasFlag = !!(
+    course.is_owned ||
+    course.isOwned ||
+    course.owned ||
+    course.access_granted ||
+    course.has_access ||
+    course.user_has_access ||
+    asOwned(course.access) ||
+    asOwned(course.access_status)
+  );
 
-  const access = hasFlag ? "owned" : asOwned(status);
+  const access = hasFlag ? "owned" : "locked";
 
   return {
     id: course.id,
-    title: course.title ?? course.name ?? (course.id ? `Curso #${course.id}` : "Curso"),
+    title: course.name ?? course.title?.rendered ?? course.title ?? "",
     image: course.thumb ?? course.thumbnail ?? course.image ?? null,
-    percent: typeof course.percent === "number" ? course.percent : 0,
+    percent: Number(course.percent ?? course.progress?.percent ?? 0) || 0,
     access,
     isOwned: access === "owned",
-    _debug_access_reason: course.access_reason ?? null,
+    r: course.r ?? course.access_reason ?? null,
   };
 }
 
