@@ -1,7 +1,38 @@
 import { wpGet, wpPost, ensureNonce } from "./wpClient";
 
-const OWNED = new Set(['owned', 'member', 'free', 'owned_by_product']);
-const asOwned = (access) => (OWNED.has(String(access ?? '').toLowerCase()) ? 'owned' : 'locked');
+const OWNED = new Set(["owned", "member", "free", "owned_by_product"]);
+const asOwned = (access) =>
+  OWNED.has(String(access ?? "").toLowerCase()) ? "owned" : "locked";
+
+function extractCoverFromYoast(yoast) {
+  try {
+    return typeof yoast?.og_image?.[0]?.url === "string" ? yoast.og_image[0].url : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchWPPostMetaById(id) {
+  if (!id) return null;
+  const fields = "_fields=id,title,excerpt,yoast_head_json,featured_media";
+  const candidates = [
+    `/wp-json/wp/v2/courses/${id}?${fields}`,
+    `/wp-json/wp/v2/course/${id}?${fields}`,
+    `/wp-json/wp/v2/posts/${id}?${fields}`,
+  ];
+  for (const path of candidates) {
+    try {
+      const meta = await wpGet(path);
+      if (meta?.id === id) return meta;
+    } catch {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
+const plain = (text) =>
+  typeof text === "string" ? text.replace(/<[^>]+>/g, "").trim() : "";
 
 export function adaptCourseCard(course = {}) {
   const status = course.access ?? course.access_status ?? course.status;
@@ -9,21 +40,36 @@ export function adaptCourseCard(course = {}) {
     course.is_owned,
     course.isOwned,
     course.owned,
+    course.member,
     course.access_granted,
     course.user_has_access,
   ].some(Boolean);
 
-  const access = hasFlag ? 'owned' : asOwned(status);
+  const access = hasFlag ? "owned" : asOwned(status);
 
   return {
     id: course.id,
-    title: course.title ?? course.name ?? `Curso #${course.id ?? ''}`,
+    title: course.title ?? course.name ?? (course.id ? `Curso #${course.id}` : "Curso"),
     image: course.thumb ?? course.thumbnail ?? course.image ?? null,
-    percent: typeof course.percent === 'number' ? course.percent : 0,
+    percent: typeof course.percent === "number" ? course.percent : 0,
     access,
-    isOwned: access === 'owned',
+    isOwned: access === "owned",
     _debug_access_reason: course.access_reason ?? null,
   };
+}
+
+async function hydrateCoursesMeta(items) {
+  const metas = await Promise.all(items.map((item) => fetchWPPostMetaById(item.id)));
+  return items.map((item, index) => {
+    const meta = metas[index];
+    const title = meta?.title?.rendered ? plain(meta.title.rendered) : item.title;
+    const image =
+      extractCoverFromYoast(meta?.yoast_head_json) ??
+      item.image ??
+      null;
+    const description = meta?.excerpt?.rendered ? plain(meta.excerpt.rendered) : "";
+    return { ...item, title, image, description };
+  });
 }
 
 const toArray = (payload) => {
@@ -48,7 +94,10 @@ export async function listMyCourses({ perPage = 50, allowLocked = true } = {}) {
       if (response?.code) return { items: [], total: 0, owned: 0 };
     }
 
-    const all = toArray(response).map(adaptCourseCard);
+    let all = toArray(response).map(adaptCourseCard);
+    if (all.length) {
+      all = await hydrateCoursesMeta(all);
+    }
     const owned = all.filter((course) => course.isOwned);
     const items = owned.length > 0 ? owned : allowLocked ? all : [];
 
