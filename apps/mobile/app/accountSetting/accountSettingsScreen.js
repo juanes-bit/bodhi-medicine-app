@@ -1,31 +1,38 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Text, View, Platform, Modal, KeyboardAvoidingView, StyleSheet, Image, TextInput, TouchableOpacity, } from "react-native";
 import CollapsingToolbar from "../../component/sliverAppBar";
 import { Fonts, Sizes, Colors } from "../../constant/styles";
 import { MaterialIcons } from '@expo/vector-icons';
 import MyStatusBar from "../../component/myStatusBar";
 import { useNavigation } from "expo-router";
+import { me } from "../../src/_core/bodhi";
 
 const AccountSettingScreen = () => {
 
     const navigation = useNavigation();
 
     const [state, setState] = useState({
+        displayName: '',
+        avatar: null,
         phoneDialog: false,
-        phone: '9603456878',
-        changePhone: '9603456878',
+        phone: '',
+        changePhone: '',
         emailDialog: false,
-        email: 'test@abc.com',
-        changeEmail: 'test@abc.com',
+        email: '',
+        changeEmail: '',
         passwordDialog: false,
-        password: '123456',
-        changePassword: '123456',
+        password: '',
+        changePassword: '',
         isLogout: false,
     })
+
+    const [profileLoading, setProfileLoading] = useState(true);
 
     const updateState = (data) => setState((state) => ({ ...state, ...data }))
 
     const {
+        displayName,
+        avatar,
         phoneDialog,
         phone,
         changePhone,
@@ -37,6 +44,39 @@ const AccountSettingScreen = () => {
         changePassword,
         isLogout,
     } = state;
+
+    useEffect(() => {
+        let active = true;
+
+        (async () => {
+            try {
+                const profile = await me();
+                if (!active) return;
+
+                const displayName = profile?.display_name || profile?.name || profile?.user?.display_name || '';
+                const email = profile?.user_email || profile?.email || profile?.user?.user_email || '';
+                const phone = profile?.meta?.phone || profile?.phone || profile?.billing?.phone || '';
+                const avatar = profile?.avatar_urls?.["96"] || profile?.avatar_urls?.["48"] || profile?.avatar_url || null;
+
+                updateState({
+                    displayName: displayName || 'Usuario Bodhi',
+                    email,
+                    changeEmail: email,
+                    phone,
+                    changePhone: phone,
+                    avatar,
+                });
+            } catch (error) {
+                console.log('[account] profile error', error?.message || error);
+            } finally {
+                if (active) setProfileLoading(false);
+            }
+        })();
+
+        return () => {
+            active = false;
+        };
+    }, []);
 
     return (
         <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
@@ -67,14 +107,15 @@ const AccountSettingScreen = () => {
                     <TouchableOpacity
                         activeOpacity={0.9}
                         onPress={() => updateState({ phoneDialog: true })}
+                        disabled={!phone && !changePhone}
                     >
-                    {editInfo({ title: 'Número de teléfono', value: phone })}
+                        {editInfo({ title: 'Número de teléfono', value: phone || 'Agregar número' })}
                     </TouchableOpacity>
                     <TouchableOpacity
                         activeOpacity={0.9}
                         onPress={() => updateState({ emailDialog: true })}
                     >
-                    {editInfo({ title: 'Correo electrónico', value: email })}
+                        {editInfo({ title: 'Correo electrónico', value: email || 'Agregar correo electrónico' })}
                     </TouchableOpacity>
                     <TouchableOpacity
                         activeOpacity={0.9}
@@ -443,22 +484,34 @@ const AccountSettingScreen = () => {
     function userName() {
         return (
             <Text style={{
-                ...Fonts.black20Bold, alignSelf: 'center',
-                marginTop: Sizes.fixPadding - 3.0
+                ...Fonts.black20Bold,
+                alignSelf: 'center',
+                marginTop: Sizes.fixPadding - 3.0,
             }}>
-                Admin Hunter Price
+                {state.displayName || 'Usuario Bodhi'}
             </Text>
-        )
+        );
     }
 
     function userPhoto() {
+        const source = state.avatar
+            ? { uri: state.avatar }
+            : require('../../assets/images/Logo Hunter Price.png');
+
         return (
             <Image
-                source={require('../../assets/images/Logo Hunter Price.png')}
-                style={{ height: 110.0, width: 110.0, borderRadius: 55.0, alignSelf: 'center', backgroundColor: Colors.whiteColor, padding: Sizes.fixPadding }}
-                resizeMode="contain"
+                source={source}
+                style={{
+                    height: 110,
+                    width: 110,
+                    borderRadius: 55,
+                    alignSelf: 'center',
+                    backgroundColor: Colors.whiteColor,
+                    padding: Sizes.fixPadding,
+                }}
+                resizeMode={state.avatar ? 'cover' : 'contain'}
             />
-        )
+        );
     }
 }
 
