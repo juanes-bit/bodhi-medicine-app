@@ -245,14 +245,6 @@ const HomeScreen = () => {
             </Text>
           </TouchableOpacity>
         </View>
-        <FlatList
-          data={modulesList}
-          keyExtractor={(item) => `${item.id}`}
-          renderItem={renderItem}
-          showsHorizontalScrollIndicator={false}
-          horizontal
-          contentContainerStyle={styles.modulesListContainer}
-        />
       </View>
     );
   }
@@ -509,38 +501,7 @@ const HomeScreen = () => {
   }
 };
 
-const modulesList = [
-  {
-    id: "1",
-    moduleTitle: "Módulo 1",
-    dates: "23, 24 y 25 de enero",
-    image: require("../../../assets/images/MODULO-1_Mesa-de-trabajo-1-300x300.png"),
-  },
-  {
-    id: "2",
-    moduleTitle: "Módulo 2",
-    dates: "13, 14 y 15 de febrero",
-    image: require("../../../assets/images/MODULO-2_Mesa-de-trabajo-1-300x300.png"),
-  },
-  {
-    id: "3",
-    moduleTitle: "Módulo 3",
-    dates: "13, 14 y 15 de marzo",
-    image: require("../../../assets/images/MODULO-3_Mesa-de-trabajo-1-300x300.png"),
-  },
-  {
-    id: "4",
-    moduleTitle: "Módulo 4",
-    dates: "10, 11 y 12 de abril",
-    image: require("../../../assets/images/MODULO-4_Mesa-de-trabajo-1-300x300.png"),
-  },
-  {
-    id: "5",
-    moduleTitle: "Módulo 5",
-    dates: "1, 2 y 3 de mayo",
-    image: require("../../../assets/images/MODULO-5_Mesa-de-trabajo-1-300x300.png"),
-  },
-];
+const modulesList = [];
 
 const POPULAR_COURSES_FALLBACK = [
   {
