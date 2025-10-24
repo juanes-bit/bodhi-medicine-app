@@ -1,18 +1,27 @@
 import { wpGet, wpPost, ensureNonce } from "./wpClient";
 
-const OWNED = new Set(["owned", "member", "free", "owned_by_product"]);
-const asOwned = (access) =>
-  OWNED.has(String(access ?? "").toLowerCase()) ? "owned" : "locked";
+const OWNED = new Set(['owned', 'member', 'free', 'owned_by_product']);
+const asOwned = (access) => (OWNED.has(String(access ?? '').toLowerCase()) ? 'owned' : 'locked');
 
 export function adaptCourseCard(course = {}) {
-  const access = asOwned(course.access ?? course.access_status);
+  const status = course.access ?? course.access_status ?? course.status;
+  const hasFlag = [
+    course.is_owned,
+    course.isOwned,
+    course.owned,
+    course.access_granted,
+    course.user_has_access,
+  ].some(Boolean);
+
+  const access = hasFlag ? 'owned' : asOwned(status);
+
   return {
     id: course.id,
-    title: course.title ?? course.name ?? `Curso #${course.id ?? ""}`,
+    title: course.title ?? course.name ?? `Curso #${course.id ?? ''}`,
     image: course.thumb ?? course.thumbnail ?? course.image ?? null,
-    percent: typeof course.percent === "number" ? course.percent : 0,
+    percent: typeof course.percent === 'number' ? course.percent : 0,
     access,
-    isOwned: access === "owned",
+    isOwned: access === 'owned',
     _debug_access_reason: course.access_reason ?? null,
   };
 }

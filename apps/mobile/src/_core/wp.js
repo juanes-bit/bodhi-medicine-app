@@ -6,6 +6,7 @@ export const BASE = 'https://staging.bodhimedicine.com';
 const NONCE_KEY = 'wp_nonce';
 const USER_ID_KEY = 'wp_user_id';
 let _nonce = null;
+let _retrying = false;
 
 const sanitizeNonce = (nonce) => {
   if (!nonce) return null;
@@ -54,40 +55,50 @@ const toURL = (path) => (path.startsWith('http') ? path : `${BASE}${path}`);
 export async function ensureNonce(force = false) {
   if (!force && _nonce) return _nonce;
 
-  if (!force && !_nonce) {
-    const saved = await AsyncStorage.getItem(NONCE_KEY);
+  if (!force) {
+    const saved = sanitizeNonce(await AsyncStorage.getItem(NONCE_KEY));
     if (saved) {
       _nonce = saved;
       return _nonce;
     }
   }
 
-  const endpoints = [
-    "/wp-json/bm/v1/rest-nonce",
-    "/wp-json/bodhi/v1/rest-nonce",
-    "/wp-json/wp/v1/rest-nonce",
+  const candidates = [
+    "/wp-json/wp/v2/users/me",
+    "/wp-json/bodhi/v1/me",
   ];
 
-  for (const ep of endpoints) {
+  for (const endpoint of candidates) {
     try {
-      const res = await fetch(`${BASE}${ep}`, {
+      const res = await fetch(`${BASE}${endpoint}`, {
         headers: { Referer: BASE },
         credentials: "include",
       });
-      if (!res.ok) continue;
-      const data = await res.json().catch(() => ({}));
-      const n = sanitizeNonce(
-        data?.nonce ?? data?._wp_nonce ?? data?.x_wp_nonce ?? data?.data?.nonce ?? null,
+
+      const headerNonce = sanitizeNonce(
+        res.headers.get("X-WP-Nonce") || res.headers.get("x-wp-nonce"),
       );
-      if (n) {
-        _nonce = n;
+      if (headerNonce) {
+        _nonce = headerNonce;
         await AsyncStorage.setItem(NONCE_KEY, _nonce);
         return _nonce;
       }
-    } catch {}
+
+      if (!res.ok) continue;
+      const data = await res.json().catch(() => ({}));
+      const dataNonce = sanitizeNonce(
+        data?.nonce ?? data?._wp_nonce ?? data?.x_wp_nonce ?? data?.data?.nonce,
+      );
+      if (dataNonce) {
+        _nonce = dataNonce;
+        await AsyncStorage.setItem(NONCE_KEY, _nonce);
+        return _nonce;
+      }
+    } catch (_) {}
   }
 
   _nonce = null;
+  await AsyncStorage.removeItem(NONCE_KEY);
   return null;
 }
 
@@ -139,15 +150,16 @@ export async function wpFetch(path, opts = {}) {
     delete headers.authorization;
 
     if (needsNonce) {
-      if (!_nonce) _nonce = await AsyncStorage.getItem(NONCE_KEY);
+      if (!_nonce) _nonce = sanitizeNonce(await AsyncStorage.getItem(NONCE_KEY));
       if (!_nonce) await ensureNonce();
       const sanitized = sanitizeNonce(_nonce);
-      if (sanitized) headers['X-WP-Nonce'] = sanitized;
-      headers['Referer'] = headers['Referer'] || BASE;
-      headers['X-Requested-With'] = headers['X-Requested-With'] || 'XMLHttpRequest';
+      if (sanitized) headers["X-WP-Nonce"] = sanitized;
+      headers["Referer"] = headers["Referer"] || BASE;
+      headers["X-Requested-With"] = headers["X-Requested-With"] || "XMLHttpRequest";
     }
 
-    const finalUrl = needsNonce && _nonce ? withNonceQuery(url, sanitizeNonce(_nonce)) : url;
+    const finalUrl =
+      needsNonce && _nonce ? withNonceQuery(url, sanitizeNonce(_nonce)) : url;
 
     return fetch(finalUrl, {
       ...opts,
@@ -160,12 +172,14 @@ export async function wpFetch(path, opts = {}) {
 
   let response = await doFetch();
 
-  if ((response.status === 401 || response.status === 403) && isWP(path)) {
+  if ((response.status === 401 || response.status === 403) && isWP(path) && !_retrying) {
     try {
       const payload = await response.clone().json().catch(() => ({}));
       const code = payload?.code;
-      if (code === 'rest_cookie_invalid_nonce' || code === 'rest_forbidden') {
-        if (__DEV__) console.log('[wpFetch] nonce inválido → refresh');
+      if (code === "rest_cookie_invalid_nonce" || code === "rest_forbidden") {
+        if (__DEV__) console.log("[wpFetch] nonce inválido → refresh");
+        _retrying = true;
+        _nonce = null;
         await ensureNonce(true);
         response = await doFetch();
 
@@ -176,13 +190,16 @@ export async function wpFetch(path, opts = {}) {
             headers: {
               ...(opts.headers || {}),
               Referer: BASE,
-              'X-Requested-With': 'XMLHttpRequest',
+              "X-Requested-With": "XMLHttpRequest",
+              "X-WP-Nonce": sanitizeNonce(_nonce),
             },
-            credentials: 'include',
+            credentials: "include",
           });
         }
       }
-    } catch (_) {}
+    } finally {
+      _retrying = false;
+    }
   }
 
   if (opts.raw) return response;
