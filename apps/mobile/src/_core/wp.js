@@ -7,6 +7,16 @@ const NONCE_KEY = 'wp_nonce';
 const USER_ID_KEY = 'wp_user_id';
 let _nonce = null;
 
+const sanitizeNonce = (nonce) => {
+  if (!nonce) return null;
+  try {
+    const trimmed = String(nonce).trim().replace(/^"+|"+$/g, '').replace(/^'+|'+$/g, '');
+    return /^[a-zA-Z0-9]+$/.test(trimmed) ? trimmed : null;
+  } catch {
+    return null;
+  }
+};
+
 async function buildCookieHeader() {
   const all = await CookieManager.get(BASE);
   const pairs = [];
@@ -28,15 +38,14 @@ const isWP = (value = '') => {
   }
 };
 
-const withNonceQuery = (rawUrl, nonce) => {
+const withNonceQuery = (url, nonce) => {
+  if (!nonce) return url;
   try {
-    const url = new URL(rawUrl);
-    if (nonce && !url.searchParams.has('_wpnonce')) {
-      url.searchParams.set('_wpnonce', nonce);
-    }
-    return url.toString();
+    const parsed = new URL(url);
+    if (!parsed.searchParams.has('_wpnonce')) parsed.searchParams.set('_wpnonce', nonce);
+    return parsed.toString();
   } catch {
-    return rawUrl;
+    return url;
   }
 };
 
