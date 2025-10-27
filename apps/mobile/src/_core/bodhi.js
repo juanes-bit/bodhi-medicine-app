@@ -46,30 +46,55 @@ export async function me() {
   return wpGet(`${MOBILE_NS}/me`, { nonce: false });
 }
 
+// Intenta ambos namespaces; cae al siguiente si 404/no route.
+async function fetchMyCoursesRaw() {
+  const paths = [
+    "/wp-json/bodhi-mobile/v1/my-courses",
+    "/wp-json/bodhi/v1/my-courses",
+  ];
+  for (const p of paths) {
+    try {
+      const r = await wpGet(p, { nonce: false });
+      if (!r?.code || r?.data?.status !== 404) return r;
+    } catch (_e) {
+      // intenta siguiente
+    }
+  }
+  return null;
+}
+
 export async function listMyCourses() {
   try {
-    const res = await wpGet(`${MOBILE_NS}/my-courses`, { nonce: false });
-    const rawItems = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
-    const rawOwned = Array.isArray(res?.itemsOwned) ? res.itemsOwned : [];
+    const res = await fetchMyCoursesRaw();
+    const rawItems = Array.isArray(res?.items)
+      ? res.items
+      : Array.isArray(res)
+      ? res
+      : [];
+    const rawOwned = Array.isArray(res?.itemsOwned)
+      ? res.itemsOwned
+      : Array.isArray(res?.owned_list)
+      ? res.owned_list
+      : [];
     const items = markOwned(rawItems, rawOwned);
     const itemsOwned = items.filter((course) => course.isOwned);
-    const total = Number.isFinite(res?.total) ? res.total : items.length;
-    const owned = Number.isFinite(res?.owned) ? res.owned : itemsOwned.length;
-    return { items, itemsOwned, total, owned };
+    return { items, itemsOwned, total: items.length, owned: itemsOwned.length };
   } catch (error) {
-    console.log("[listMyCourses error]", error.message || error);
+    console.log("[listMyCourses error]", error?.message || error);
     return { items: [], itemsOwned: [], total: 0, owned: 0 };
   }
 }
 
 export function adaptCourseCard(course = {}) {
-  const normalized = markOwned([course], [course]).at(0) || {};
+  const id = normalizeId(course);
+  const isOwned = normalizeOwned(course);
+  const access = course.access ?? (isOwned ? "owned" : "locked");
   return {
-    id: normalized.id ?? course.id ?? course.ID,
+    id,
     title: course.title ?? course.name ?? course.post_title,
     image: course.image ?? course.cover_image,
-    isOwned: normalized.isOwned,
-    access: normalized.access,
+    isOwned,
+    access,
     percent: course.percent ?? course.progress?.pct ?? 0,
   };
 }
