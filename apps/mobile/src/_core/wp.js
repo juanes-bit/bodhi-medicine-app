@@ -79,16 +79,8 @@ const parseResponseBody = async (res) => {
   }
 };
 
-const resolveWpUrl = (path) => {
-  if (!path) throw new Error('path_required');
-  if (/^https?:\/\//i.test(path)) return path;
-  if (path.startsWith('/wp-json/')) return `${BASE}${path}`;
-  const sanitized = path.startsWith('/') ? path : `/${path}`;
-  return `${BASE}/wp-json${sanitized}`;
-};
-
-async function performWpFetch(path, { method = 'GET', body, headers = {}, nonce = true } = {}) {
-  // Shared fetch helper; accepts WordPress paths or absolute URLs.
+export async function wpFetch(path, { method = 'GET', body, headers = {}, nonce = true } = {}) {
+  // Shared fetch helper; forces Cookie header on every request.
   const isAbsolute = /^https?:\/\//i.test(path);
   const url = isAbsolute
     ? path
@@ -96,7 +88,7 @@ async function performWpFetch(path, { method = 'GET', body, headers = {}, nonce 
 
   const h = {
     Accept: 'application/json',
-    Referer: `${BASE}/`,
+    Referer: BASE,
     ...(body ? { 'Content-Type': 'application/json' } : {}),
     ...headers,
   };
@@ -107,7 +99,6 @@ async function performWpFetch(path, { method = 'GET', body, headers = {}, nonce 
   }
 
   if (nonce) {
-    // Opt-in nonce refresh so mobile endpoints can skip it.
     const currentNonce = await ensureNonce();
     if (currentNonce) {
       h['X-WP-Nonce'] = currentNonce;
@@ -270,15 +261,11 @@ export async function wpLogin(email, password) {
   return data;
 }
 
-export async function wpFetch(path, opts = {}) {
-  return performWpFetch(path, opts);
-}
-
 export const wpGet = (path, options = {}) =>
-  performWpFetch(path, { ...options, method: 'GET' });
+  wpFetch(path, { ...options, method: 'GET' });
 
 export const wpPost = (path, body = {}, options = {}) =>
-  performWpFetch(path, {
+  wpFetch(path, {
     ...options,
     method: 'POST',
     body,
