@@ -4,6 +4,7 @@ import CookieManager from '@react-native-cookies/cookies';
 const DEFAULT_BASE = 'https://staging.bodhimedicine.com';
 const configuredBase = process.env.EXPO_PUBLIC_WP_BASE ?? DEFAULT_BASE;
 export const BASE = configuredBase.replace(/\/$/, '') || DEFAULT_BASE;
+// Normalized REST root so callers can pass bare resource paths.
 const API_ROOT = `${BASE}/wp-json`;
 
 const USER_ID_KEY = 'wp_user_id';
@@ -48,6 +49,7 @@ const ensureCookie = async () => {
 };
 
 function buildCookieString(jar = {}) {
+  // Flatten the native cookie jar into a single header string.
   const parts = [];
   Object.entries(jar || {}).forEach(([name, v]) => {
     if (v?.value) {
@@ -59,6 +61,7 @@ function buildCookieString(jar = {}) {
 
 async function buildCookieHeader() {
   try {
+    // Always refresh from CookieManager to honor updates from web views.
     const jar = await CookieManager.get(BASE);
     return buildCookieString(jar);
   } catch {
@@ -85,6 +88,7 @@ const resolveWpUrl = (path) => {
 };
 
 async function performWpFetch(path, { method = 'GET', body, headers = {}, nonce = true } = {}) {
+  // Shared fetch helper; accepts WordPress paths or absolute URLs.
   const isAbsolute = /^https?:\/\//i.test(path);
   const url = isAbsolute
     ? path
@@ -103,6 +107,7 @@ async function performWpFetch(path, { method = 'GET', body, headers = {}, nonce 
   }
 
   if (nonce) {
+    // Opt-in nonce refresh so mobile endpoints can skip it.
     const currentNonce = await ensureNonce();
     if (currentNonce) {
       h['X-WP-Nonce'] = currentNonce;
