@@ -10,18 +10,18 @@ export async function me() {
 export async function listMyCourses() {
   try {
     const res = await wpGet(`${MOBILE_NS}/my-courses`, { nonce: false });
-    const items = Array.isArray(res?.items) ? res.items : [];
-    const itemsOwned = Array.isArray(res?.itemsOwned)
+    const items = Array.isArray(res.items) ? res.items : [];
+    const itemsOwned = Array.isArray(res.itemsOwned)
       ? res.itemsOwned
       : items.filter((item) => item?.isOwned);
     return {
       items,
       itemsOwned,
-      total: Number.isFinite(res?.total) ? res.total : items.length,
-      owned: Number.isFinite(res?.owned) ? res.owned : itemsOwned.length,
+      total: Number.isFinite(res.total) ? res.total : items.length,
+      owned: Number.isFinite(res.owned) ? res.owned : itemsOwned.length,
     };
   } catch (error) {
-    console.log("[listMyCourses error]", error?.message || error);
+    console.log("[listMyCourses error]", error.message || error);
     return { items: [], itemsOwned: [], total: 0, owned: 0 };
   }
 }

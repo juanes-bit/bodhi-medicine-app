@@ -46,7 +46,7 @@ const HomeScreen = () => {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [ownedItems, setOwnedItems] = useState([]);
-  const [ownedCount, setOwnedCount] = useState(0);
+  const [owned, setOwned] = useState(0);
   const [coursesError, setCoursesError] = useState(null);
 
   useEffect(() => {
@@ -86,7 +86,7 @@ const HomeScreen = () => {
 
         setItems(items);
         setOwnedItems(itemsOwned);
-        setOwnedCount(owned);
+        setOwned(owned);
         setCoursesError(null);
       } catch (error) {
         if (__DEV__) {
@@ -96,7 +96,7 @@ const HomeScreen = () => {
           setCoursesError(String(error?.message || error));
           setItems([]);
           setOwnedItems([]);
-          setOwnedCount(0);
+          setOwned(0);
         }
       } finally {
         if (isMounted) {
@@ -118,7 +118,6 @@ const HomeScreen = () => {
   }, [items]);
 
   const acquiredItems = ownedItems;
-  const noOwnedCourses = ownedCount === 0;
   const acquiredSectionTitle = "Mis cursos";
 
   const firstName =
@@ -375,8 +374,11 @@ const HomeScreen = () => {
 
   function acquiredCourses(list = []) {
     const arr = Array.isArray(list) ? list : [];
-    if (!arr.length || noOwnedCourses) {
+    if (owned === 0) {
       return <EmptyState text="Aún no tienes cursos adquiridos." />;
+    }
+    if (!arr.length) {
+      return null;
     }
 
     const renderItem = ({ item }) => {
