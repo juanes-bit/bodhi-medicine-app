@@ -15,7 +15,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import Carousel from "react-native-snap-carousel-v4";
 import CollapsingToolbar from "../../../component/sliverAppBar";
 import { useNavigation } from "expo-router";
-import { listMyCourses, me } from "../../../src/_core/bodhi";
+import { listMyCourses, me, normalizeOwned } from "../../../src/_core/bodhi";
 
 const width = Dimensions.get("window").width;
 const itemWidth = Math.round(width * 0.8);
@@ -77,14 +77,19 @@ const HomeScreen = () => {
           setUser(profile);
         }
 
-        const { items = [], itemsOwned = [], total = 0, owned = 0 } = await listMyCourses();
+        const {
+          items: normalizedItems = [],
+          itemsOwned = [],
+          total = 0,
+          owned = 0,
+        } = await listMyCourses(); // items.* ya traen isOwned normalizado
         if (!isMounted) return;
 
         if (__DEV__) {
           console.log('[home] courses', { total, owned });
         }
 
-        setItems(items);
+        setItems(normalizedItems);
         setOwnedItems(itemsOwned);
         setOwned(owned);
         setCoursesError(null);
@@ -299,7 +304,7 @@ const HomeScreen = () => {
 
     const renderItem = ({ item }) => {
       const handlePress = () => {
-        if (!item?.isOwned) {
+        if (!normalizeOwned(item)) {
           Alert.alert("Bodhi Medicine", "Aún no tienes acceso a este curso.");
           return;
         }
