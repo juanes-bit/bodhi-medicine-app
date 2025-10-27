@@ -45,7 +45,8 @@ const HomeScreen = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
-  const [owned, setOwned] = useState([]);
+  const [ownedItems, setOwnedItems] = useState([]);
+  const [ownedCount, setOwnedCount] = useState(0);
   const [coursesError, setCoursesError] = useState(null);
 
   useEffect(() => {
@@ -84,7 +85,8 @@ const HomeScreen = () => {
         }
 
         setItems(items);
-        setOwned(itemsOwned);
+        setOwnedItems(itemsOwned);
+        setOwnedCount(owned);
         setCoursesError(null);
       } catch (error) {
         if (__DEV__) {
@@ -93,7 +95,8 @@ const HomeScreen = () => {
         if (isMounted) {
           setCoursesError(String(error?.message || error));
           setItems([]);
-          setOwned([]);
+          setOwnedItems([]);
+          setOwnedCount(0);
         }
       } finally {
         if (isMounted) {
@@ -114,7 +117,8 @@ const HomeScreen = () => {
     return items.length ? items : POPULAR_COURSES_FALLBACK;
   }, [items]);
 
-  const acquiredItems = owned;
+  const acquiredItems = ownedItems;
+  const noOwnedCourses = ownedCount === 0;
   const acquiredSectionTitle = "Mis cursos";
 
   const firstName =
@@ -371,7 +375,7 @@ const HomeScreen = () => {
 
   function acquiredCourses(list = []) {
     const arr = Array.isArray(list) ? list : [];
-    if (!arr.length) {
+    if (!arr.length || noOwnedCourses) {
       return <EmptyState text="Aún no tienes cursos adquiridos." />;
     }
 
