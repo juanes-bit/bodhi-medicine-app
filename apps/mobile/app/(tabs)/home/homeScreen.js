@@ -82,7 +82,7 @@ const HomeScreen = () => {
           itemsOwned = [],
           total = 0,
           owned = 0,
-        } = await listMyCourses(); // items.* ya traen isOwned normalizado
+        } = await listMyCourses(); // items.* ya traen isOwned normalizado e id estable
         if (!isMounted) return;
 
         if (__DEV__) {

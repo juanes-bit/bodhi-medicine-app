@@ -1,7 +1,9 @@
 import { wpGet, wpPost } from "./wp";
 
-// Normaliza bandera de acceso desde distintas formas del backend
+// --- helpers de identificación/propiedad (robustos) ---
 const OWNED_ACCESS = new Set(["owned", "member", "free"]);
+
+// Normaliza cualquier bandera conocida a booleano
 export function normalizeOwned(course = {}) {
   return Boolean(
     course.isOwned ??
@@ -11,6 +13,30 @@ export function normalizeOwned(course = {}) {
       course.user_has_access ??
       (typeof course.access === "string" && OWNED_ACCESS.has(course.access)),
   );
+}
+
+// Extrae un ID estable de múltiples formas (string/number)
+export function normalizeId(c = {}) {
+  const raw =
+    c.id ?? c.ID ?? c.post_id ?? c.wp_post_id ?? c.course_id ?? c.wp_postId;
+  const n = Number.parseInt(String(raw), 10);
+  return Number.isFinite(n) ? n : String(raw ?? "");
+}
+
+// Marca isOwned en items usando itemsOwned (si existe) y/o flags internas
+function markOwned(items = [], ownedList = []) {
+  const ownedIds = new Set(
+    (ownedList || [])
+      .map(normalizeId)
+      .filter((v) => v !== "" && v !== null && v !== "null"),
+  );
+  return items.map((c = {}) => {
+    const id = normalizeId(c);
+    const fromSet = ownedIds.has(id);
+    const isOwned = fromSet || normalizeOwned(c);
+    const access = isOwned ? "owned" : c.access ?? "locked";
+    return { ...c, id, isOwned, access };
+  });
 }
 
 const MOBILE_NS = "/bodhi-mobile/v1";
@@ -23,13 +49,13 @@ export async function me() {
 export async function listMyCourses() {
   try {
     const res = await wpGet(`${MOBILE_NS}/my-courses`, { nonce: false });
-    const raw = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
-    const items = raw.map((course = {}) => ({
-      ...course,
-      isOwned: normalizeOwned(course),
-    }));
+    const rawItems = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
+    const rawOwned = Array.isArray(res?.itemsOwned) ? res.itemsOwned : [];
+    const items = markOwned(rawItems, rawOwned);
     const itemsOwned = items.filter((course) => course.isOwned);
-    return { items, itemsOwned, total: items.length, owned: itemsOwned.length };
+    const total = Number.isFinite(res?.total) ? res.total : items.length;
+    const owned = Number.isFinite(res?.owned) ? res.owned : itemsOwned.length;
+    return { items, itemsOwned, total, owned };
   } catch (error) {
     console.log("[listMyCourses error]", error.message || error);
     return { items: [], itemsOwned: [], total: 0, owned: 0 };
@@ -37,14 +63,13 @@ export async function listMyCourses() {
 }
 
 export function adaptCourseCard(course = {}) {
-  const isOwned = normalizeOwned(course);
-  const access = course.access ?? (isOwned ? "owned" : "locked");
+  const normalized = markOwned([course], [course]).at(0) || {};
   return {
-    id: course.id ?? course.ID,
+    id: normalized.id ?? course.id ?? course.ID,
     title: course.title ?? course.name ?? course.post_title,
     image: course.image ?? course.cover_image,
-    isOwned,
-    access,
+    isOwned: normalized.isOwned,
+    access: normalized.access,
     percent: course.percent ?? course.progress?.pct ?? 0,
   };
 }
