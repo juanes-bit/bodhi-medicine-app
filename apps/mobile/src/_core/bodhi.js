@@ -1,5 +1,18 @@
 import { wpGet, wpPost } from "./wp";
 
+// Normaliza bandera de acceso desde distintas formas del backend
+const OWNED_ACCESS = new Set(["owned", "member", "free"]);
+export function normalizeOwned(course = {}) {
+  return Boolean(
+    course.isOwned ??
+      course.is_owned ??
+      course.owned ??
+      course.access_granted ??
+      course.user_has_access ??
+      (typeof course.access === "string" && OWNED_ACCESS.has(course.access)),
+  );
+}
+
 const MOBILE_NS = "/bodhi-mobile/v1";
 
 export async function me() {
@@ -10,20 +23,30 @@ export async function me() {
 export async function listMyCourses() {
   try {
     const res = await wpGet(`${MOBILE_NS}/my-courses`, { nonce: false });
-    const items = Array.isArray(res.items) ? res.items : [];
-    const itemsOwned = Array.isArray(res.itemsOwned)
-      ? res.itemsOwned
-      : items.filter((item) => item?.isOwned);
-    return {
-      items,
-      itemsOwned,
-      total: Number.isFinite(res.total) ? res.total : items.length,
-      owned: Number.isFinite(res.owned) ? res.owned : itemsOwned.length,
-    };
+    const raw = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
+    const items = raw.map((course = {}) => ({
+      ...course,
+      isOwned: normalizeOwned(course),
+    }));
+    const itemsOwned = items.filter((course) => course.isOwned);
+    return { items, itemsOwned, total: items.length, owned: itemsOwned.length };
   } catch (error) {
     console.log("[listMyCourses error]", error.message || error);
     return { items: [], itemsOwned: [], total: 0, owned: 0 };
   }
+}
+
+export function adaptCourseCard(course = {}) {
+  const isOwned = normalizeOwned(course);
+  const access = course.access ?? (isOwned ? "owned" : "locked");
+  return {
+    id: course.id ?? course.ID,
+    title: course.title ?? course.name ?? course.post_title,
+    image: course.image ?? course.cover_image,
+    isOwned,
+    access,
+    percent: course.percent ?? course.progress?.pct ?? 0,
+  };
 }
 
 export async function getCourse(courseId) {
