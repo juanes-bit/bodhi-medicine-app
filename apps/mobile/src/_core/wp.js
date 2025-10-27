@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CookieManager from '@react-native-cookies/cookies';
+import { me } from './bodhi';
 
 const DEFAULT_BASE = 'https://staging.bodhimedicine.com';
 const configuredBase = process.env.EXPO_PUBLIC_WP_BASE ?? DEFAULT_BASE;
@@ -258,7 +259,17 @@ export async function wpLogin(email, password) {
   }
 
   setWpSession({ cookie: WP_COOKIE, nonce: WP_NONCE });
+  await verifySession();
   return data;
+}
+
+export async function verifySession() {
+  const jar = await CookieManager.get(BASE);
+  console.log('[cookie jar]', jar);
+
+  const profile = await me();
+  console.log('[me]', profile);
+  return profile;
 }
 
 export const wpGet = (path, options = {}) =>
