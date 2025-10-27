@@ -82,7 +82,7 @@ const HomeScreen = () => {
           itemsOwned = [],
           total = 0,
           owned = 0,
-        } = await listMyCourses(); // items.* ya traen isOwned normalizado e id estable
+        } = await listMyCourses(); // items ya vienen con .isOwned normalizado e id estable
         if (!isMounted) return;
 
         if (__DEV__) {
@@ -304,7 +304,7 @@ const HomeScreen = () => {
 
     const renderItem = ({ item }) => {
       const handlePress = () => {
-        if (!normalizeOwned(item)) {
+        if (!Boolean(item?.isOwned)) {
           Alert.alert("Bodhi Medicine", "Aún no tienes acceso a este curso.");
           return;
         }
