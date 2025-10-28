@@ -1,9 +1,8 @@
 import { wpGet, wpPost } from "./wp";
 
-// --- helpers de identificación/propiedad (robustos) ---
 const OWNED_ACCESS = new Set(["owned", "member", "free"]);
 
-// Normaliza cualquier bandera conocida a booleano
+// === Normalizadores consistentes ===
 export function normalizeOwned(course = {}) {
   return Boolean(
     course.isOwned ??
@@ -11,25 +10,27 @@ export function normalizeOwned(course = {}) {
       course.owned ??
       course.access_granted ??
       course.user_has_access ??
+      course.owned_by_product ??
       (typeof course.access === "string" && OWNED_ACCESS.has(course.access)),
   );
 }
 
-// Extrae un ID estable de múltiples formas (string/number)
 export function normalizeId(c = {}) {
   const raw =
-    c.id ?? c.ID ?? c.post_id ?? c.wp_post_id ?? c.course_id ?? c.wp_postId;
+    c.id ??
+    c.ID ??
+    c.courseId ??
+    c.course_id ??
+    c.wp_post_id ??
+    c.post_id ??
+    c.wp_postId ??
+    c.wpPostId;
   const n = Number.parseInt(String(raw), 10);
   return Number.isFinite(n) ? n : String(raw ?? "");
 }
 
-// Marca isOwned en items usando itemsOwned (si existe) y/o flags internas
 function markOwned(items = [], ownedList = []) {
-  const ownedIds = new Set(
-    (ownedList || [])
-      .map(normalizeId)
-      .filter((v) => v !== "" && v !== null && v !== "null"),
-  );
+  const ownedIds = new Set((ownedList || []).map(normalizeId).filter(Boolean));
   return items.map((c = {}) => {
     const id = normalizeId(c);
     const fromSet = ownedIds.has(id);
@@ -46,7 +47,7 @@ export async function me() {
   return wpGet(`${MOBILE_NS}/me`, { nonce: false });
 }
 
-// Intenta ambos namespaces; cae al siguiente si 404/no route.
+// Intenta ambos namespaces "my-courses"
 async function fetchMyCoursesRaw() {
   const paths = [
     "/wp-json/bodhi-mobile/v1/my-courses",
@@ -56,11 +57,25 @@ async function fetchMyCoursesRaw() {
     try {
       const r = await wpGet(p, { nonce: false });
       if (!r?.code || r?.data?.status !== 404) return r;
-    } catch (_e) {
-      // intenta siguiente
-    }
+    } catch (_) {}
   }
   return null;
+}
+
+// Fallback: usa el contrato "union" (trae señales de acceso)
+async function fetchCoursesUnion() {
+  try {
+    const r = await wpGet("/wp-json/bodhi/v1/courses?mode=union");
+    const arr = Array.isArray(r?.items) ? r.items : Array.isArray(r) ? r : [];
+    return arr.map((i = {}) => {
+      const id = normalizeId(i);
+      const isOwned = normalizeOwned(i);
+      const access = isOwned ? "owned" : i.access ?? "locked";
+      return { ...i, id, isOwned, access };
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function listMyCourses() {
@@ -76,8 +91,29 @@ export async function listMyCourses() {
       : Array.isArray(res?.owned_list)
       ? res.owned_list
       : [];
-    const items = markOwned(rawItems, rawOwned);
-    const itemsOwned = items.filter((course) => course.isOwned);
+
+    let items = markOwned(rawItems, rawOwned);
+    let itemsOwned = items.filter((course) => course.isOwned);
+
+    // Fallback inteligente: si no hay owned, consulta union y fusiona por ID
+    if (items.length && itemsOwned.length === 0) {
+      const unionItems = await fetchCoursesUnion();
+      if (unionItems.length) {
+        const uMap = new Map(unionItems.map((u) => [normalizeId(u), u]));
+        items = items.map((c) => {
+          const u = uMap.get(normalizeId(c));
+          if (!u) return c;
+          const isOwned = Boolean(u.isOwned);
+          return {
+            ...c,
+            isOwned,
+            access: isOwned ? "owned" : c.access ?? "locked",
+          };
+        });
+        itemsOwned = items.filter((course) => course.isOwned);
+      }
+    }
+
     return { items, itemsOwned, total: items.length, owned: itemsOwned.length };
   } catch (error) {
     console.log("[listMyCourses error]", error?.message || error);
