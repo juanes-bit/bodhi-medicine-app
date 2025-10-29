@@ -17,6 +17,8 @@ import CollapsingToolbar from "../../../component/sliverAppBar";
 import { useNavigation } from "expo-router";
 import { listMyCourses, me, normalizeOwned } from "../../../src/_core/bodhi";
 
+const placeholderCourseImage = require("../../../assets/images/new_course/new_course_4.png");
+
 const width = Dimensions.get("window").width;
 const itemWidth = Math.round(width * 0.8);
 
@@ -310,16 +312,13 @@ const HomeScreen = () => {
         }
         navigation.push("courseDetail/courseDetailScreen", {
           image: item.image,
-          courseName: item.courseName,
-          courseCategory: item.courseCategory,
-          courseRating: item.courseRating,
-          courseNumberOfRating: item.courseNumberOfRating,
-          courseId: item.courseId,
+          courseName: item.title,
+          courseCategory: item.summary,
+          courseId: item.id,
         });
       };
 
-      const ratingCount = Number(item.courseNumberOfRating ?? 0);
-      const showRating = Number.isFinite(ratingCount) && ratingCount > 0;
+      const cardImage = item.image ? { uri: item.image } : placeholderCourseImage;
 
       return (
         <TouchableOpacity
@@ -328,34 +327,20 @@ const HomeScreen = () => {
           style={styles.popularCoursesContainerStyle}
         >
           <Image
-            source={item.image}
+            source={cardImage}
             resizeMode="cover"
             style={styles.popularCoursesImageStyle}
           />
           <View style={styles.popularCoursesInformationContainerStyle}>
-            <Text style={{ ...Fonts.gray15Regular }}>{item.courseName}</Text>
-            <Text
-              style={{ ...Fonts.black17Bold, marginVertical: Sizes.fixPadding - 5.0 }}
-            >
-              {item.courseCategory}
-            </Text>
-            <View style={{ backgroundColor: "gray", height: 0.2 }} />
-            {showRating ? (
-              <View
-                style={{ flexDirection: "row", alignItems: "center", marginTop: Sizes.fixPadding - 5.0 }}
+            <Text style={{ ...Fonts.gray15Regular }}>{item.title || "Curso"}</Text>
+            {item.summary ? (
+              <Text
+                style={{ ...Fonts.black17Bold, marginVertical: Sizes.fixPadding - 5.0 }}
+                numberOfLines={2}
               >
-                <Text style={{ ...Fonts.black15Bold }}>
-                  {item.courseRating}
-                </Text>
-                <MaterialIcons name="star" size={17} color="black" />
-                <Text
-                  style={{ ...Fonts.black15Bold, marginLeft: Sizes.fixPadding - 5.0 }}
-                >
-                  ({ratingCount})
-                </Text>
-              </View>
+                {item.summary}
+              </Text>
             ) : null}
-            <View style={{ marginTop: Sizes.fixPadding }} />
           </View>
         </TouchableOpacity>
       );
@@ -364,7 +349,7 @@ const HomeScreen = () => {
     return (
       <FlatList
         data={arr}
-        keyExtractor={(item, index) => `${item.courseId ?? index}`}
+        keyExtractor={(item, index) => `${item.id ?? index}`}
         renderItem={renderItem}
         showsHorizontalScrollIndicator={false}
         horizontal
@@ -390,17 +375,13 @@ const HomeScreen = () => {
       const handlePress = () => {
         navigation.push("courseDetail/courseDetailScreen", {
           image: item.image,
-          courseName: item.courseName,
-          courseCategory: item.courseCategory,
-          courseRating: item.courseRating,
-          courseNumberOfRating: item.courseNumberOfRating,
-          coursePrice: item.coursePrice,
-          courseId: item.courseId,
+          courseName: item.title,
+          courseCategory: item.summary,
+          courseId: item.id,
         });
       };
 
-      const ratingCount = Number(item.courseNumberOfRating ?? 0);
-      const showRating = Number.isFinite(ratingCount) && ratingCount > 0;
+      const cardImage = item.image ? { uri: item.image } : placeholderCourseImage;
 
       return (
         <TouchableOpacity
@@ -409,7 +390,7 @@ const HomeScreen = () => {
           style={styles.popularCoursesContainerStyle}
         >
           <Image
-            source={item.image}
+            source={cardImage}
             resizeMode="cover"
             style={styles.popularCoursesImageStyle}
           />
@@ -419,28 +400,16 @@ const HomeScreen = () => {
                 style={{ ...Fonts.black17Bold, marginBottom: Sizes.fixPadding - 5.0 }}
                 numberOfLines={2}
               >
-                {item.courseCategory}
+                {item.title || "Curso"}
               </Text>
             </View>
-            <Text
-              style={{ ...Fonts.gray15Regular, marginBottom: Sizes.fixPadding - 5.0 }}
-              numberOfLines={2}
-            >
-              {item.courseName}
-            </Text>
-            <View style={{ backgroundColor: "gray", height: 0.2 }} />
-            {showRating ? (
-              <View
-                style={{ flexDirection: "row", alignItems: "center", marginTop: Sizes.fixPadding - 5.0 }}
+            {item.summary ? (
+              <Text
+                style={{ ...Fonts.gray15Regular, marginBottom: Sizes.fixPadding - 5.0 }}
+                numberOfLines={2}
               >
-                <Text style={{ ...Fonts.black15Bold }}>{item.courseRating}</Text>
-                <MaterialIcons name="star" size={17} color="black" style={{ marginLeft: 4 }} />
-                <Text
-                  style={{ ...Fonts.black15Bold, marginLeft: Sizes.fixPadding - 5.0 }}
-                >
-                  ({ratingCount})
-                </Text>
-              </View>
+                {item.summary}
+              </Text>
             ) : null}
           </View>
         </TouchableOpacity>
@@ -450,7 +419,7 @@ const HomeScreen = () => {
     return (
       <FlatList
         data={arr}
-        keyExtractor={(item, index) => `${item.courseId ?? index}`}
+        keyExtractor={(item, index) => `${item.id ?? index}`}
         renderItem={renderItem}
         showsHorizontalScrollIndicator={false}
         horizontal
