@@ -44,6 +44,30 @@ const pickId = (o = {}) => {
   return Number.isFinite(numeric) ? numeric : null;
 };
 
+const pickStr = (...vals) => {
+  for (const v of vals) {
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return null;
+};
+
+const pickImage = (img) => {
+  if (!img) return null;
+  if (typeof img === "string") return img;
+  return (
+    img.url ||
+    img.src ||
+    img.source ||
+    img?.sizes?.large ||
+    img?.sizes?.full ||
+    img?.sizes?.medium ||
+    null
+  );
+};
+
+const stripHtml = (s) =>
+  typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : null;
+
 const flattenUnionItem = (x = {}) => {
   const course = x && typeof x.course === "object" ? x.course : null;
   if (!course) return x;
@@ -51,12 +75,12 @@ const flattenUnionItem = (x = {}) => {
   if ("owned_by_product" in x) base.owned_by_product = x.owned_by_product;
   if ("has_access" in x) base.has_access = x.has_access;
   if ("access" in x && !base.access) base.access = x.access;
-  if ("products" in x) base.products = x.products;
+  if ("products" in x && !base.products) base.products = x.products;
   return base;
 };
 
 const inferOwned = (o = {}) => {
-  const toLower = (v) => String(v ?? "").toLowerCase();
+  const low = (v) => String(v ?? "").toLowerCase();
   return Boolean(
     o?.isOwned ||
       o?.is_owned ||
@@ -64,14 +88,49 @@ const inferOwned = (o = {}) => {
       o?.access_granted ||
       o?.has_access ||
       o?.owned_by_product ||
-      ["owned", "member", "free"].includes(toLower(o?.access)) ||
+      ["owned", "member", "free"].includes(low(o?.access)) ||
       (Array.isArray(o?.products) &&
         o.products.some(
           (p) =>
             p &&
-            (p.has_access === true || toLower(p?.access) === "owned"),
+            (p.has_access === true || low(p?.access) === "owned"),
         )),
   );
+};
+
+const normalizeCourse = (raw = {}) => {
+  const flattened = flattenUnionItem(raw);
+  const id = pickId(flattened);
+  const title = pickStr(
+    flattened?.title,
+    flattened?.name,
+    flattened?.post_title,
+  );
+  const image =
+    pickImage(flattened?.cover_image) ||
+    pickImage(flattened?.image) ||
+    pickImage(flattened?.thumbnail) ||
+    pickImage(flattened?.featured_image);
+  const summary = stripHtml(
+    pickStr(
+      flattened?.summary,
+      flattened?.excerpt,
+      flattened?.description,
+      flattened?.text,
+      flattened?.post_excerpt,
+      flattened?.short_description,
+    ),
+  );
+  const isOwned = inferOwned(flattened);
+  return {
+    id,
+    title: title ?? "",
+    image: image ?? null,
+    summary: summary ?? null,
+    isOwned,
+    access: isOwned ? "owned" : "locked",
+    _raw: flattened,
+  };
 };
 
 export async function me() {
@@ -81,28 +140,14 @@ export async function me() {
 
 export async function listMyCourses() {
   try {
-    const res = await wpGet(`${COURSES_URL}&_ts=${Date.now()}`);
+    const res = await wpGet(`${COURSES_URL}&_=${Date.now()}`);
     const rawItems = Array.isArray(res)
       ? res
       : Array.isArray(res?.items)
       ? res.items
       : [];
 
-    const items = rawItems.map((entry = {}) => {
-      const flat = flattenUnionItem(entry);
-      const id = pickId(flat);
-      const normalizedOwned = inferOwned(flat);
-
-      return {
-        id,
-        title: flat?.title ?? flat?.name ?? flat?.post_title ?? "",
-        image: flat?.cover_image ?? flat?.image ?? flat?.thumbnail ?? null,
-        isOwned: normalizedOwned,
-        access: normalizedOwned ? "owned" : "locked",
-        _raw: flat,
-      };
-    });
-
+    const items = rawItems.map(normalizeCourse);
     const itemsOwned = items.filter((item) => item.isOwned);
     return { items, itemsOwned, total: items.length, owned: itemsOwned.length };
   } catch (error) {
