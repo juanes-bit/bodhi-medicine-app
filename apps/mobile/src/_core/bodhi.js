@@ -29,91 +29,57 @@ export function normalizeId(c = {}) {
   return Number.isFinite(n) ? n : String(raw ?? "");
 }
 
-function markOwned(items = [], ownedList = []) {
-  const ownedIds = new Set((ownedList || []).map(normalizeId).filter(Boolean));
-  return items.map((c = {}) => {
-    const id = normalizeId(c);
-    const fromSet = ownedIds.has(id);
-    const isOwned = fromSet || normalizeOwned(c);
-    const access = isOwned ? "owned" : c.access ?? "locked";
-    return { ...c, id, isOwned, access };
-  });
-}
-
 const MOBILE_NS = "/bodhi-mobile/v1";
+const COURSES_URL = "/wp-json/bodhi/v1/courses?mode=union";
+
+const pickId = (obj = {}) => {
+  const candidates = [
+    obj?.id,
+    obj?.ID,
+    obj?.course_id,
+    obj?.wp_post_id,
+    obj?.courseId,
+    obj?.wpPostId,
+  ];
+  const numeric = candidates
+    .map((value) => Number.parseInt(String(value), 10))
+    .find(Number.isFinite);
+  return Number.isFinite(numeric) ? numeric : (candidates.find(Boolean) ?? null);
+};
 
 export async function me() {
   // cookie-only endpoint
   return wpGet(`${MOBILE_NS}/me`, { nonce: false });
 }
 
-// Intenta ambos namespaces "my-courses"
-async function fetchMyCoursesRaw() {
-  const paths = [
-    "/wp-json/bodhi-mobile/v1/my-courses",
-    "/wp-json/bodhi/v1/my-courses",
-  ];
-  for (const p of paths) {
-    try {
-      const r = await wpGet(p, { nonce: false });
-      if (!r?.code || r?.data?.status !== 404) return r;
-    } catch (_) {}
-  }
-  return null;
-}
-
-// Fallback: usa el contrato "union" (trae señales de acceso)
-async function fetchCoursesUnion() {
-  try {
-    const r = await wpGet("/wp-json/bodhi/v1/courses?mode=union");
-    const arr = Array.isArray(r?.items) ? r.items : Array.isArray(r) ? r : [];
-    return arr.map((i = {}) => {
-      const id = normalizeId(i);
-      const isOwned = normalizeOwned(i);
-      const access = isOwned ? "owned" : i.access ?? "locked";
-      return { ...i, id, isOwned, access };
-    });
-  } catch {
-    return [];
-  }
-}
-
 export async function listMyCourses() {
   try {
-    const res = await fetchMyCoursesRaw();
-    const rawItems = Array.isArray(res?.items)
-      ? res.items
-      : Array.isArray(res)
+    const res = await wpGet(`${COURSES_URL}&_ts=${Date.now()}`);
+    const rawItems = Array.isArray(res)
       ? res
-      : [];
-    const rawOwned = Array.isArray(res?.itemsOwned)
-      ? res.itemsOwned
-      : Array.isArray(res?.owned_list)
-      ? res.owned_list
+      : Array.isArray(res?.items)
+      ? res.items
       : [];
 
-    let items = markOwned(rawItems, rawOwned);
-    let itemsOwned = items.filter((course) => course.isOwned);
+    const items = rawItems.map((entry = {}) => {
+      const id = pickId(entry);
+      const normalizedOwned =
+        Boolean(entry?.isOwned) ||
+        OWNED_ACCESS.has(String(entry?.access ?? "").toLowerCase()) ||
+        Boolean(entry?.has_access) ||
+        Boolean(entry?.access_granted);
 
-    // Fallback inteligente: si no hay owned, consulta union y fusiona por ID
-    if (items.length && itemsOwned.length === 0) {
-      const unionItems = await fetchCoursesUnion();
-      if (unionItems.length) {
-        const uMap = new Map(unionItems.map((u) => [normalizeId(u), u]));
-        items = items.map((c) => {
-          const u = uMap.get(normalizeId(c));
-          if (!u) return c;
-          const isOwned = Boolean(u.isOwned);
-          return {
-            ...c,
-            isOwned,
-            access: isOwned ? "owned" : c.access ?? "locked",
-          };
-        });
-        itemsOwned = items.filter((course) => course.isOwned);
-      }
-    }
+      return {
+        id,
+        title: entry?.title ?? entry?.name ?? entry?.post_title ?? "",
+        image: entry?.cover_image ?? entry?.image ?? entry?.thumbnail ?? null,
+        isOwned: normalizedOwned,
+        access: normalizedOwned ? "owned" : "locked",
+        _raw: entry,
+      };
+    });
 
+    const itemsOwned = items.filter((item) => item.isOwned);
     return { items, itemsOwned, total: items.length, owned: itemsOwned.length };
   } catch (error) {
     console.log("[listMyCourses error]", error?.message || error);
