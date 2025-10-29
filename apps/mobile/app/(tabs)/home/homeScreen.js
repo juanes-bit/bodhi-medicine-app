@@ -15,7 +15,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import Carousel from "react-native-snap-carousel-v4";
 import CollapsingToolbar from "../../../component/sliverAppBar";
 import { useNavigation } from "expo-router";
-import { listMyCourses, me, normalizeOwned } from "../../../src/_core/bodhi";
+import { listMyCourses, me } from "../../../src/_core/bodhi";
 
 const placeholderCourseImage = require("../../../assets/images/new_course/new_course_4.png");
 
@@ -46,9 +46,8 @@ const HomeScreen = () => {
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState([]);
-  const [ownedItems, setOwnedItems] = useState([]);
-  const [owned, setOwned] = useState(0);
+  const [allCourses, setAllCourses] = useState([]);
+  const [ownedCourses, setOwnedCourses] = useState([]);
   const [coursesError, setCoursesError] = useState(null);
 
   useEffect(() => {
@@ -91,9 +90,8 @@ const HomeScreen = () => {
           console.log('[home] courses', { total, owned });
         }
 
-        setItems(normalizedItems);
-        setOwnedItems(itemsOwned);
-        setOwned(owned);
+        setAllCourses(normalizedItems);
+        setOwnedCourses(itemsOwned);
         setCoursesError(null);
       } catch (error) {
         if (__DEV__) {
@@ -101,9 +99,8 @@ const HomeScreen = () => {
         }
         if (isMounted) {
           setCoursesError(String(error?.message || error));
-          setItems([]);
-          setOwnedItems([]);
-          setOwned(0);
+          setAllCourses([]);
+          setOwnedCourses([]);
         }
       } finally {
         if (isMounted) {
@@ -121,10 +118,10 @@ const HomeScreen = () => {
   
 
   const popularCoursesData = useMemo(() => {
-    return items.length ? items : POPULAR_COURSES_FALLBACK;
-  }, [items]);
+    return allCourses.length ? allCourses : POPULAR_COURSES_FALLBACK;
+  }, [allCourses]);
 
-  const acquiredItems = ownedItems;
+  const acquiredItems = ownedCourses;
   const acquiredSectionTitle = "Mis cursos";
 
   const firstName =
@@ -306,19 +303,22 @@ const HomeScreen = () => {
 
     const renderItem = ({ item }) => {
       const handlePress = () => {
-        if (!Boolean(item?.isOwned)) {
-          Alert.alert("Bodhi Medicine", "Aún no tienes acceso a este curso.");
+        if (item?.isOwned) {
+          navigation.push("courseDetail/courseDetailScreen", {
+            image: item.image,
+            courseName: item.title,
+            courseCategory: item.summary,
+            courseId: item.id,
+          });
           return;
         }
-        navigation.push("courseDetail/courseDetailScreen", {
-          image: item.image,
-          courseName: item.title,
-          courseCategory: item.summary,
-          courseId: item.id,
-        });
+        Alert.alert("Bodhi Medicine", "Aún no tienes acceso a este curso.");
       };
 
-      const cardImage = item.image ? { uri: item.image } : placeholderCourseImage;
+      const cardImage =
+        typeof item.image === "string"
+          ? { uri: item.image }
+          : item.image || placeholderCourseImage;
 
       return (
         <TouchableOpacity
@@ -364,11 +364,8 @@ const HomeScreen = () => {
 
   function acquiredCourses(list = []) {
     const arr = Array.isArray(list) ? list : [];
-    if (owned === 0) {
-      return <EmptyState text="Aún no tienes cursos adquiridos." />;
-    }
     if (!arr.length) {
-      return null;
+      return <EmptyState text="Aún no tienes cursos adquiridos." />;
     }
 
     const renderItem = ({ item }) => {
@@ -381,7 +378,10 @@ const HomeScreen = () => {
         });
       };
 
-      const cardImage = item.image ? { uri: item.image } : placeholderCourseImage;
+      const cardImage =
+        typeof item.image === "string"
+          ? { uri: item.image }
+          : item.image || placeholderCourseImage;
 
       return (
         <TouchableOpacity
@@ -485,36 +485,32 @@ const modulesList = [];
 
 const POPULAR_COURSES_FALLBACK = [
   {
-    courseId: 1,
+    id: 1,
     image: require("../../../assets/images/new_course/new_course_4.png"),
-    courseName: "Masterclass para hombres sobre salud consciente, autonomía y amor propio.",
-    courseCategory: "Bodhi Medicine para Hombres",
-    courseRating: "5.0",
-    courseNumberOfRating: "128",
+    title: "Masterclass para hombres sobre salud consciente, autonomía y amor propio.",
+    summary: "Bodhi Medicine para Hombres",
+    isOwned: false,
   },
   {
-    courseId: 2,
+    id: 2,
     image: require("../../../assets/images/new_course/new_course_2.png"),
-    courseName: "Coherencia corazón-cerebro para equilibrar el sistema nervioso.",
-    courseCategory: "HeartMath",
-    courseRating: "4.9",
-    courseNumberOfRating: "95",
+    title: "Coherencia corazón-cerebro para equilibrar el sistema nervioso.",
+    summary: "HeartMath",
+    isOwned: false,
   },
   {
-    courseId: 3,
+    id: 3,
     image: require("../../../assets/images/new_course/bodhi_medicine_para_mamas.jpeg"),
-    courseName: "Visión integral para cuidar tu salud y la de tu familia en 3 clases.",
-    courseCategory: "Bodhi Medicine para Mamás",
-    courseRating: "5.0",
-    courseNumberOfRating: "142",
+    title: "Visión integral para cuidar tu salud y la de tu familia en 3 clases.",
+    summary: "Bodhi Medicine para Mamás",
+    isOwned: false,
   },
   {
-    courseId: 4,
+    id: 4,
     image: require("../../../assets/images/new_course/menopausia_con_amor.jpeg"),
-    courseName: "Taller de 5 horas para transitar la menopausia con herramientas claras.",
-    courseCategory: "La Menopausia con Amor",
-    courseRating: "4.8",
-    courseNumberOfRating: "87",
+    title: "Taller de 5 horas para transitar la menopausia con herramientas claras.",
+    summary: "La Menopausia con Amor",
+    isOwned: false,
   },
 ];
 
