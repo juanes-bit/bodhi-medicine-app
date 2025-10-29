@@ -235,6 +235,24 @@ export async function wpLogin(email, password) {
   WP_COOKIE = null;
   WP_NONCE = null;
 
+  const extractLoginMessage = (payload, status) => {
+    if (typeof payload === 'string' && payload.trim()) {
+      return payload.trim();
+    }
+    if (payload && typeof payload === 'object') {
+      if (typeof payload.message === 'string' && payload.message.trim()) {
+        return payload.message.trim();
+      }
+      if (typeof payload.err === 'string' && payload.err.trim()) {
+        return payload.err.trim();
+      }
+    }
+    if (status === 401 || status === 403) {
+      return 'Correo o contraseña incorrectos.';
+    }
+    return 'No fue posible iniciar sesión. Inténtalo de nuevo.';
+  };
+
   const response = await fetch(`${BASE}/wp-json/bm/v1/form-login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -244,9 +262,11 @@ export async function wpLogin(email, password) {
 
   const data = await parseResponseBody(response);
   if (!response.ok || !data || typeof data !== 'object' || !data.ok) {
-    throw new Error(
-      typeof data === 'string' ? data : `login ${response.status}`,
-    );
+    const message = extractLoginMessage(data, response.status);
+    const error = new Error(message);
+    error.status = response.status;
+    error.code = data?.code ?? 'login_failed';
+    throw error;
   }
 
   await syncCookieFromManager();
