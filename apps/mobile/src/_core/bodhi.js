@@ -32,19 +32,46 @@ export function normalizeId(c = {}) {
 const MOBILE_NS = "/bodhi-mobile/v1";
 const COURSES_URL = "/wp-json/bodhi/v1/courses?mode=union";
 
-const pickId = (obj = {}) => {
-  const candidates = [
-    obj?.id,
-    obj?.ID,
-    obj?.course_id,
-    obj?.wp_post_id,
-    obj?.courseId,
-    obj?.wpPostId,
-  ];
-  const numeric = candidates
-    .map((value) => Number.parseInt(String(value), 10))
-    .find(Number.isFinite);
-  return Number.isFinite(numeric) ? numeric : (candidates.find(Boolean) ?? null);
+const pickId = (o = {}) => {
+  const candidate =
+    o?.id ??
+    o?.ID ??
+    o?.course_id ??
+    o?.wp_post_id ??
+    o?.post_id ??
+    o?.courseId;
+  const numeric = Number(candidate);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const flattenUnionItem = (x = {}) => {
+  const course = x && typeof x.course === "object" ? x.course : null;
+  if (!course) return x;
+  const base = { ...course };
+  if ("owned_by_product" in x) base.owned_by_product = x.owned_by_product;
+  if ("has_access" in x) base.has_access = x.has_access;
+  if ("access" in x && !base.access) base.access = x.access;
+  if ("products" in x) base.products = x.products;
+  return base;
+};
+
+const inferOwned = (o = {}) => {
+  const toLower = (v) => String(v ?? "").toLowerCase();
+  return Boolean(
+    o?.isOwned ||
+      o?.is_owned ||
+      o?.owned ||
+      o?.access_granted ||
+      o?.has_access ||
+      o?.owned_by_product ||
+      ["owned", "member", "free"].includes(toLower(o?.access)) ||
+      (Array.isArray(o?.products) &&
+        o.products.some(
+          (p) =>
+            p &&
+            (p.has_access === true || toLower(p?.access) === "owned"),
+        )),
+  );
 };
 
 export async function me() {
@@ -62,20 +89,17 @@ export async function listMyCourses() {
       : [];
 
     const items = rawItems.map((entry = {}) => {
-      const id = pickId(entry);
-      const normalizedOwned =
-        Boolean(entry?.isOwned) ||
-        OWNED_ACCESS.has(String(entry?.access ?? "").toLowerCase()) ||
-        Boolean(entry?.has_access) ||
-        Boolean(entry?.access_granted);
+      const flat = flattenUnionItem(entry);
+      const id = pickId(flat);
+      const normalizedOwned = inferOwned(flat);
 
       return {
         id,
-        title: entry?.title ?? entry?.name ?? entry?.post_title ?? "",
-        image: entry?.cover_image ?? entry?.image ?? entry?.thumbnail ?? null,
+        title: flat?.title ?? flat?.name ?? flat?.post_title ?? "",
+        image: flat?.cover_image ?? flat?.image ?? flat?.thumbnail ?? null,
         isOwned: normalizedOwned,
         access: normalizedOwned ? "owned" : "locked",
-        _raw: entry,
+        _raw: flat,
       };
     });
 
