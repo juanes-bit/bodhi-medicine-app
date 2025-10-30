@@ -75,11 +75,6 @@ const pickImage = (...values) => {
   return null;
 };
 
-const resolveAccess = (value) => {
-  const normalized = String(value ?? "").toLowerCase();
-  return OWNED_ACCESS.has(normalized) ? "owned" : normalized || "locked";
-};
-
 const flattenCourseEntry = (raw = {}) => {
   const inner = raw?.course && typeof raw.course === "object" ? raw.course : null;
   if (!inner) return raw;
