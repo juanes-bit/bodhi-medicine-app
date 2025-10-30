@@ -14,7 +14,7 @@ import { Colors, Fonts, Sizes, CommonStyles } from "../../../constant/styles";
 import { MaterialIcons } from "@expo/vector-icons";
 import Carousel from "react-native-snap-carousel-v4";
 import CollapsingToolbar from "../../../component/sliverAppBar";
-import { useNavigation } from "expo-router";
+import { useNavigation, useRouter } from "expo-router";
 import { listMyCourses, me } from "../../../src/_core/bodhi";
 
 const placeholderCourseImage = require("../../../assets/images/new_course/new_course_4.png");
@@ -42,12 +42,14 @@ const carouselItems = [
 
 const HomeScreen = () => {
   const navigation = useNavigation();
+  const router = useRouter();
   const flatListRef = useRef(null);
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [allCourses, setAllCourses] = useState([]);
   const [ownedCourses, setOwnedCourses] = useState([]);
+  const [popularCourses, setPopularCourses] = useState([]);
   const [coursesError, setCoursesError] = useState(null);
 
   useEffect(() => {
@@ -92,6 +94,9 @@ const HomeScreen = () => {
 
         setAllCourses(normalizedItems);
         setOwnedCourses(itemsOwned);
+        setPopularCourses(
+          normalizedItems.filter((course) => !course.isOwned),
+        );
         setCoursesError(null);
       } catch (error) {
         if (__DEV__) {
@@ -101,6 +106,7 @@ const HomeScreen = () => {
           setCoursesError(String(error?.message || error));
           setAllCourses([]);
           setOwnedCourses([]);
+          setPopularCourses([]);
         }
       } finally {
         if (isMounted) {
@@ -118,8 +124,8 @@ const HomeScreen = () => {
   
 
   const popularCoursesData = useMemo(() => {
-    return allCourses.length ? allCourses : POPULAR_COURSES_FALLBACK;
-  }, [allCourses]);
+    return popularCourses.length ? popularCourses : POPULAR_COURSES_FALLBACK;
+  }, [popularCourses]);
 
   const acquiredItems = ownedCourses;
   const acquiredSectionTitle = "Mis cursos";
@@ -199,11 +205,11 @@ const HomeScreen = () => {
           {autoScroller()}
           {categories()}
           <View style={styles.sectionWrapper}>
-            {title({ title: "Cursos populares" })}
+            {title({ title: "Mis cursos" })}
             {acquiredCourses(acquiredItems)}
           </View>
           <View style={styles.sectionWrapper}>
-            {title({ title: "Mis cursos" })}
+            {title({ title: "Cursos populares" })}
             {popularCourses(popularCoursesData)}
           </View>
           <View style={styles.sectionWrapper}>
@@ -304,11 +310,9 @@ const HomeScreen = () => {
     const renderItem = ({ item }) => {
       const handlePress = () => {
         if (item?.isOwned) {
-          navigation.push("courseDetail/courseDetailScreen", {
-            image: item.image,
-            courseName: item.title,
-            courseCategory: item.summary,
-            courseId: item.id,
+          router.push({
+            pathname: "/courseOverView/[id]",
+            params: { id: String(item.id) },
           });
           return;
         }
@@ -370,11 +374,9 @@ const HomeScreen = () => {
 
     const renderItem = ({ item }) => {
       const handlePress = () => {
-        navigation.push("courseDetail/courseDetailScreen", {
-          image: item.image,
-          courseName: item.title,
-          courseCategory: item.summary,
-          courseId: item.id,
+        router.push({
+          pathname: "/courseOverView/[id]",
+          params: { id: String(item.id) },
         });
       };
 
