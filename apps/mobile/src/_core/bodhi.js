@@ -328,7 +328,7 @@ export async function listMyCourses() {
       return unionFallback;
     }
     if (unionFallback.items.length) {
-      fallbackNormalized = fallbackNormalized ?? unionFallback;
+      fallbackNormalized = unionFallback;
     }
 
     return fallbackNormalized ?? { items: [], itemsOwned: [], total: 0, owned: 0 };
