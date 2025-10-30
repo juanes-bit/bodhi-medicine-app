@@ -50,29 +50,58 @@ const pickId = (o = {}) => {
   return Number.isFinite(+candidate) ? +candidate : null;
 };
 
-const sanitizeText = (value) =>
-  typeof value === "string" ? value.replace(/<[^>]+>/g, "").trim() : null;
+const extractString = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "object") {
+    if (typeof value.rendered === "string") return value.rendered;
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        const resolved = extractString(entry);
+        if (resolved) return resolved;
+      }
+    }
+  }
+  return "";
+};
+
+const extractImage = (value) => {
+  if (!value) return null;
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "object") {
+    const direct = value.url || value.src || value.source || value.source_url;
+    if (typeof direct === "string" && direct.trim()) return direct.trim();
+    const sizes = value.sizes || value.media_details?.sizes;
+    if (sizes && typeof sizes === "object") {
+      for (const key of ["large", "full", "medium", "thumbnail"]) {
+        const candidate = sizes[key];
+        const resolved = extractImage(candidate);
+        if (resolved) return resolved;
+      }
+    }
+  }
+  return null;
+};
+
+const sanitizeContent = (value) => {
+  const raw = extractString(value);
+  if (!raw) return null;
+  const cleaned = raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return cleaned || null;
+};
 
 const pickString = (...values) => {
   for (const value of values) {
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
+    const resolved = extractString(value);
+    if (resolved.trim()) return resolved.trim();
   }
   return "";
 };
 
 const pickImage = (...values) => {
   for (const value of values) {
-    if (typeof value === "string" && value.trim()) {
-      return value.trim();
-    }
-    if (value && typeof value === "object") {
-      const candidate = value.url || value.src || value.source;
-      if (typeof candidate === "string" && candidate.trim()) {
-        return candidate.trim();
-      }
-    }
+    const resolved = extractImage(value);
+    if (resolved) return resolved;
   }
   return null;
 };
@@ -121,12 +150,12 @@ const normalizeCourseEntry = (raw, ownedSet = new Set(), { flatten = false } = {
     course?.thumbnail,
   );
   const summary =
-    sanitizeText(course?.summary) ||
-    sanitizeText(course?.excerpt) ||
-    sanitizeText(course?.description) ||
-    sanitizeText(course?.text) ||
-    sanitizeText(course?.post_excerpt) ||
-    sanitizeText(course?.short_description) ||
+    sanitizeContent(course?.summary) ||
+    sanitizeContent(course?.excerpt) ||
+    sanitizeContent(course?.description) ||
+    sanitizeContent(course?.text) ||
+    sanitizeContent(course?.post_excerpt) ||
+    sanitizeContent(course?.short_description) ||
     null;
   const isOwned = ownedSet.has(id) || normalizeOwned(course);
   const access = isOwned ? "owned" : resolveAccess(course?.access);
@@ -219,9 +248,9 @@ const fetchPublicCoursesMap = async () => {
         title: pickString(entry?.title, entry?.name),
         image: pickImage(entry?.cover_image, entry?.image, entry?.thumb),
         summary:
-          sanitizeText(entry?.summary) ||
-          sanitizeText(entry?.description) ||
-          sanitizeText(entry?.excerpt) ||
+          sanitizeContent(entry?.summary) ||
+          sanitizeContent(entry?.description) ||
+          sanitizeContent(entry?.excerpt) ||
           null,
       });
     }
@@ -271,12 +300,12 @@ const buildUnionFallback = async () => {
           course?.thumbnail,
         ) || publicMeta?.image || null;
       const summary =
-        sanitizeText(course?.summary) ||
-        sanitizeText(course?.excerpt) ||
-        sanitizeText(course?.description) ||
-        sanitizeText(course?.text) ||
-        sanitizeText(course?.post_excerpt) ||
-        sanitizeText(course?.short_description) ||
+        sanitizeContent(course?.summary) ||
+        sanitizeContent(course?.excerpt) ||
+        sanitizeContent(course?.description) ||
+        sanitizeContent(course?.text) ||
+        sanitizeContent(course?.post_excerpt) ||
+        sanitizeContent(course?.short_description) ||
         publicMeta?.summary ||
         null;
       const isOwned = ownedSet.has(id) || normalizeOwned(course);
