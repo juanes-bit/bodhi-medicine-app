@@ -92,12 +92,13 @@ const resolveAccess = (value) => {
 };
 
 const collectOwnedIds = (payload = {}) => {
+  const source = payload?.data ?? payload;
   const candidates = [
-    payload?.itemsOwned,
-    payload?.ownedIds,
-    payload?.owned_ids,
-    payload?.owned_list,
-    payload?.owned,
+    source?.itemsOwned,
+    source?.ownedIds,
+    source?.owned_ids,
+    source?.owned_list,
+    source?.owned,
   ];
   return new Set(
     candidates
@@ -139,19 +140,20 @@ const normalizeCourseEntry = (raw, ownedSet = new Set(), { flatten = false } = {
 };
 
 const normalizeCoursesPayload = (payload = {}, { flatten = false } = {}) => {
-  const rawItems = Array.isArray(payload?.items)
-    ? payload.items
-    : Array.isArray(payload)
-    ? payload
+  const source = payload?.data ?? payload;
+  const rawItems = Array.isArray(source?.items)
+    ? source.items
+    : Array.isArray(source)
+    ? source
     : [];
-  const ownedSet = collectOwnedIds(payload);
+  const ownedSet = collectOwnedIds(source);
   const items = rawItems.map((raw) =>
     normalizeCourseEntry(raw, ownedSet, { flatten }),
   );
   const itemsOwned = items.filter((course) => course.isOwned);
-  const total = Number.isFinite(payload?.total) ? payload.total : items.length;
-  const owned = Number.isFinite(payload?.owned)
-    ? payload.owned
+  const total = Number.isFinite(source?.total) ? source.total : items.length;
+  const owned = Number.isFinite(source?.owned)
+    ? source.owned
     : itemsOwned.length;
   return { items, itemsOwned, total, owned };
 };
@@ -166,6 +168,9 @@ export async function listMyCourses() {
     for (const source of COURSE_SOURCES) {
       try {
         const payload = await wpGet(source.url, source.options || {});
+        if (__DEV__) {
+          console.log('[listMyCourses payload]', source.url, payload);
+        }
         const normalized = normalizeCoursesPayload(payload, {
           flatten: Boolean(source.flatten),
         });
