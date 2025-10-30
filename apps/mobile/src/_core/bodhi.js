@@ -233,20 +233,22 @@ const fetchPublicCoursesMap = async () => {
 
 const buildUnionFallback = async () => {
   try {
-    const meData = await me().catch(() => null);
-    const userId = Number(meData?.id) || pickId(meData);
-    const [unionPayload, ownedIds, publicMap] = await Promise.all([
-      wpGet(`${UNION_URL}&_=${Date.now()}`).catch(() => null),
-      fetchOwnedCourseIds(userId),
-      fetchPublicCoursesMap(),
-    ]);
-
+    const unionPayload = await wpGet(`${UNION_URL}&_=${Date.now()}`).catch(() => null);
     const source = unionPayload?.data ?? unionPayload ?? {};
     const rawItems = Array.isArray(source?.items)
       ? source.items
       : Array.isArray(source)
       ? source
       : [];
+
+    const ownedIds = new Set(
+      rawItems
+        .filter((entry) => normalizeOwned(entry))
+        .map((entry) => pickId(entry))
+        .filter((id) => Number.isFinite(id)),
+    );
+
+    const publicMap = await fetchPublicCoursesMap();
 
     const ownedSet = collectOwnedIds(source);
     ownedIds.forEach((id) => ownedSet.add(id));
