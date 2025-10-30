@@ -1,90 +1,124 @@
-import React from "react";
-import { Text, View, StyleSheet, Dimensions, Image } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Text, View, StyleSheet, Dimensions, Image, ScrollView } from "react-native";
 import { Fonts, Sizes, Colors, CommonStyles } from "../../../constant/styles";
 import CollapsingToolbar from "../../../component/sliverAppBar";
+import { listMyCourses } from "../../../src/_core/bodhi";
 
 const { width } = Dimensions.get('screen');
 
-const myCoursesList = [
-    {
-        id: '1',
-        image: require('../../../assets/images/new_course/new_course_4.png'),
-        course: 'Bodhi Medicine para Hombres',
-        description: 'Masterclass para hombres que invita a un nuevo paradigma de salud con autonomía y amor propio.',
-        getVideos: 20,
-        totalVideos: 20,
-    },
-    {
-        id: '2',
-        image: require('../../../assets/images/new_course/new_course_2.png'),
-        course: 'HeartMath',
-        description: 'Prácticas sencillas para crear coherencia corazón-cerebro y equilibrar tu sistema nervioso.',
-        getVideos: 3,
-        totalVideos: 12,
-    },
-    {
-        id: '3',
-        image: require('../../../assets/images/new_course/new_course_1.png'),
-        course: 'Bodhi Medicine para Mamás',
-        description: 'Visión integral para cuidar tu salud y la de tu familia con tres clases profundas.',
-        getVideos: 0,
-        totalVideos: 15,
-    },
-    {
-        id: '4',
-        image: require('../../../assets/images/new_course/new_course_3.png'),
-        course: 'La Menopausia con Amor',
-        description: 'Taller de cinco horas para vivir la menopausia con claridad, herramientas y autocuidado.',
-        getVideos: 15,
-        totalVideos: 30,
-    }
-];
-
 const CoursesScreen = () => {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const { itemsOwned } = await listMyCourses();
+        if (mounted) {
+          setCourses(itemsOwned);
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(String(err?.message || err));
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const renderItem = (item) => {
+    const placeholder = require("../../../assets/images/new_course/new_course_4.png");
+    const imageSource =
+      typeof item.image === "string" && item.image
+        ? { uri: item.image }
+        : item.image || placeholder;
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
-            <CollapsingToolbar
-                element={
-                    <Text style={{ ...Fonts.black25Bold, color: Colors.whiteColor }}>Mis Cursos</Text>
-                }
-                toolbarColor={Colors.primaryColor}
-                toolBarMinHeight={40}
-                toolbarMaxHeight={230}
-                src={require('../../../assets/images/appbar_bg.png')}
+      <View key={item.id ?? item.title} style={styles.courseContainerStyle}>
+        <Image
+          source={imageSource}
+          style={styles.courseImageStyle}
+          resizeMode="cover"
+        />
+        <View style={styles.courseInfoContainerStyle}>
+          <Text style={{ ...Fonts.black17Bold }}>{item.title || "Curso"}</Text>
+          {item.summary ? (
+            <Text
+              style={{ ...Fonts.gray16Regular, marginVertical: Sizes.fixPadding - 3.0 }}
+              numberOfLines={3}
             >
-                <View style={{ paddingTop: Sizes.fixPadding }}>
-                    {myCoursesList.map(item => (
-                        renderItem({ item })
-                    ))}
-                </View>
-            </CollapsingToolbar>
+              {item.summary}
+            </Text>
+          ) : null}
         </View>
-    )
+      </View>
+    );
+  };
 
-    function renderItem({ item }) {
-        return (
-            <View key={item.id} style={styles.courseContainerStyle}>
-                <Image
-                    source={item.image}
-                    style={styles.courseImageStyle}
-                    resizeMode="cover"
-                />
-                <View style={styles.courseInfoContainerStyle}>
-                    <Text style={{ ...Fonts.black17Bold }}>
-                        {item.course}
-                    </Text>
-                    <Text style={{ ...Fonts.gray16Regular, marginVertical: Sizes.fixPadding - 3.0 }}>
-                        {item.description}
-                    </Text>
-                    <Text style={{ ...Fonts.indigoColor16Bold }}>
-                        {item.getVideos}/{item.totalVideos} Videos
-                    </Text>
-                </View>
-            </View>
-        )
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.feedbackContainer}>
+          <ActivityIndicator color={Colors.primaryColor} size="small" />
+          <Text style={{ ...Fonts.gray16Regular, marginTop: Sizes.fixPadding }}>
+            Cargando tus cursos...
+          </Text>
+        </View>
+      );
     }
-}
+
+    if (error) {
+      return (
+        <View style={styles.feedbackContainer}>
+          <Text style={{ ...Fonts.gray16Regular }}>{error}</Text>
+        </View>
+      );
+    }
+
+    if (!courses.length) {
+      return (
+        <View style={styles.feedbackContainer}>
+          <Text style={{ ...Fonts.gray16Regular }}>
+            Aún no tienes cursos adquiridos.
+          </Text>
+        </View>
+      );
+    }
+
+    return courses.map(renderItem);
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: "#FAFAFA" }}>
+      <CollapsingToolbar
+        element={
+          <Text style={{ ...Fonts.black25Bold, color: Colors.whiteColor }}>
+            Mis Cursos
+          </Text>
+        }
+        toolbarColor={Colors.primaryColor}
+        toolBarMinHeight={40}
+        toolbarMaxHeight={230}
+        src={require("../../../assets/images/appbar_bg.png")}
+      >
+        <ScrollView
+          contentContainerStyle={{ paddingTop: Sizes.fixPadding, paddingBottom: Sizes.fixPadding * 2 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {renderContent()}
+        </ScrollView>
+      </CollapsingToolbar>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
     courseContainerStyle: {
