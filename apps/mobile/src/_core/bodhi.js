@@ -73,6 +73,68 @@ const flattenUnionItem = (x = {}) => {
   return base;
 };
 
+const normalizeBasicCourse = (raw = {}) => {
+  const id = pickId(raw);
+  const title =
+    (typeof raw?.title === "string" && raw.title) ||
+    (typeof raw?.name === "string" && raw.name) ||
+    (typeof raw?.post_title === "string" && raw.post_title) ||
+    "";
+  const image =
+    (typeof raw?.image === "string" && raw.image) ||
+    (typeof raw?.cover_image === "string" && raw.cover_image) ||
+    (typeof raw?.featured_image === "string" && raw.featured_image) ||
+    (typeof raw?.thumbnail === "string" && raw.thumbnail) ||
+    null;
+  const summary =
+    (typeof raw?.summary === "string" && raw.summary) ||
+    (typeof raw?.excerpt === "string" && raw.excerpt) ||
+    (typeof raw?.description === "string" && raw.description) ||
+    null;
+  const isOwned = normalizeOwned(raw);
+  return {
+    id,
+    title,
+    image,
+    summary,
+    isOwned,
+    access: isOwned ? "owned" : raw?.access ?? "locked",
+    _raw: raw,
+  };
+};
+
+const normalizeMyCoursesResponse = (payload = {}) => {
+  const rawItems = Array.isArray(payload?.items)
+    ? payload.items
+    : Array.isArray(payload)
+    ? payload
+    : [];
+  const ownedCandidates = Array.isArray(payload?.itemsOwned)
+    ? payload.itemsOwned
+    : Array.isArray(payload?.owned)
+    ? payload.owned
+    : [];
+  const ownedSet = new Set(
+    ownedCandidates
+      .map((value) => (typeof value === "object" ? pickId(value) : Number(value)))
+      .filter((value) => Number.isFinite(value))
+  );
+
+  const items = rawItems.map((raw) => {
+    const normalized = normalizeBasicCourse(raw);
+    const isOwned = normalized.isOwned || ownedSet.has(normalized.id);
+    return { ...normalized, isOwned, access: isOwned ? "owned" : normalized.access };
+  });
+
+  const itemsOwned = items.filter((item) => item.isOwned);
+  const total = Number.isFinite(payload?.total) ? payload.total : items.length;
+  const owned = Number.isFinite(payload?.owned)
+    ? payload.owned
+    : itemsOwned.length;
+
+  return { items, itemsOwned, total, owned };
+};
+
 async function fetchOwnedCourseIds(uid) {
   const owned = new Set();
   if (!uid) {
@@ -139,6 +201,18 @@ export async function me() {
 
 export async function listMyCourses() {
   try {
+    try {
+      const mobilePayload = await wpGet("/wp-json/bodhi-mobile/v1/my-courses", {
+        nonce: false,
+      });
+      const normalizedMobile = normalizeMyCoursesResponse(mobilePayload);
+      if (normalizedMobile.items.length || normalizedMobile.itemsOwned.length) {
+        return normalizedMobile;
+      }
+    } catch {
+      // fall through to union fallback
+    }
+
     const meData = await me().catch(() => null);
     const userId = pickId(meData) ?? meData?.id ?? null;
 
