@@ -199,11 +199,11 @@ const HomeScreen = () => {
           {autoScroller()}
           {categories()}
           <View style={styles.sectionWrapper}>
-            {title({ title: "Mis cursos" })}
+            {title({ title: "Cursos populares" })}
             {acquiredCourses(acquiredItems)}
           </View>
           <View style={styles.sectionWrapper}>
-            {title({ title: "Cursos populares" })}
+            {title({ title: "Mis cursos" })}
             {popularCourses(popularCoursesData)}
           </View>
           <View style={styles.sectionWrapper}>
