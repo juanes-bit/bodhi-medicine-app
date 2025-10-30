@@ -37,6 +37,8 @@ const COURSE_SOURCES = [
   { url: "/wp-json/bodhi/v1/courses?mode=union", flatten: true },
 ];
 
+const UNION_URL = "/wp-json/bodhi/v1/courses?mode=union";
+
 const pickId = (o = {}) => {
   const candidate =
     o?.id ??
@@ -158,6 +160,140 @@ const normalizeCoursesPayload = (payload = {}, { flatten = false } = {}) => {
   return { items, itemsOwned, total, owned };
 };
 
+const fetchOwnedCourseIds = async (userId) => {
+  const owned = new Set();
+  if (!Number.isFinite(userId)) {
+    return owned;
+  }
+  try {
+    const productsPayload = await wpGet(`/wp-json/tva/v1/customers/${userId}/products`);
+    const productsSource = productsPayload?.data ?? productsPayload;
+    const products = Array.isArray(productsSource?.items)
+      ? productsSource.items
+      : Array.isArray(productsSource)
+      ? productsSource
+      : [];
+
+    for (const product of products) {
+      const productId = pickId(product);
+      if (!productId) continue;
+      try {
+        const coursesPayload = await wpGet(`/wp-json/tva/v1/products/${productId}/courses`);
+        const coursesSource = coursesPayload?.data ?? coursesPayload;
+        const courses = Array.isArray(coursesSource?.items)
+          ? coursesSource.items
+          : Array.isArray(coursesSource)
+          ? coursesSource
+          : [];
+        for (const course of courses) {
+          const courseId = pickId(course);
+          if (courseId) {
+            owned.add(courseId);
+          }
+        }
+      } catch {
+        // ignore individual course failures
+      }
+    }
+  } catch {
+    // ignore customer fetch failure
+  }
+  return owned;
+};
+
+const fetchPublicCoursesMap = async () => {
+  const map = new Map();
+  try {
+    const payload = await wpGet("/wp-json/tva-public/v1/courses");
+    const source = payload?.data ?? payload;
+    const list = Array.isArray(source?.items)
+      ? source.items
+      : Array.isArray(source)
+      ? source
+      : [];
+
+    for (const entry of list) {
+      const id = pickId(entry);
+      if (!id) continue;
+      map.set(id, {
+        title: pickString(entry?.title, entry?.name),
+        image: pickImage(entry?.cover_image, entry?.image, entry?.thumb),
+        summary:
+          sanitizeText(entry?.summary) ||
+          sanitizeText(entry?.description) ||
+          sanitizeText(entry?.excerpt) ||
+          null,
+      });
+    }
+  } catch {
+    // ignore
+  }
+  return map;
+};
+
+const buildUnionFallback = async () => {
+  try {
+    const meData = await me().catch(() => null);
+    const userId = Number(meData?.id) || pickId(meData);
+    const [unionPayload, ownedIds, publicMap] = await Promise.all([
+      wpGet(`${UNION_URL}&_=${Date.now()}`).catch(() => null),
+      fetchOwnedCourseIds(userId),
+      fetchPublicCoursesMap(),
+    ]);
+
+    const source = unionPayload?.data ?? unionPayload ?? {};
+    const rawItems = Array.isArray(source?.items)
+      ? source.items
+      : Array.isArray(source)
+      ? source
+      : [];
+
+    const ownedSet = collectOwnedIds(source);
+    ownedIds.forEach((id) => ownedSet.add(id));
+
+    const items = rawItems.map((raw = {}) => {
+      const course = flattenCourseEntry(raw);
+      const id = pickId(course);
+      const publicMeta = id ? publicMap.get(id) : null;
+      const title = pickString(
+        course?.title,
+        course?.name,
+        course?.post_title,
+        publicMeta?.title,
+      );
+      const image =
+        pickImage(
+          course?.image,
+          course?.cover_image,
+          course?.featured_image,
+          course?.thumbnail,
+        ) || publicMeta?.image || null;
+      const summary =
+        sanitizeText(course?.summary) ||
+        sanitizeText(course?.excerpt) ||
+        sanitizeText(course?.description) ||
+        sanitizeText(course?.text) ||
+        sanitizeText(course?.post_excerpt) ||
+        sanitizeText(course?.short_description) ||
+        publicMeta?.summary ||
+        null;
+      const isOwned = ownedSet.has(id) || normalizeOwned(course);
+      const access = isOwned ? "owned" : resolveAccess(course?.access);
+      return { id, title, image, summary, isOwned, access, _raw: course };
+    });
+
+    const itemsOwned = items.filter((item) => item.isOwned);
+    const total = Number.isFinite(source?.total) ? source.total : items.length;
+    const owned = Number.isFinite(source?.owned)
+      ? source.owned
+      : itemsOwned.length;
+    return { items, itemsOwned, total, owned };
+  } catch (error) {
+    console.log("[listMyCourses union fallback]", error?.message || error);
+    return { items: [], itemsOwned: [], total: 0, owned: 0 };
+  }
+};
+
 export async function me() {
   // cookie-only endpoint
   return wpGet(`${MOBILE_NS}/me`, { nonce: false });
@@ -165,24 +301,35 @@ export async function me() {
 
 export async function listMyCourses() {
   try {
+    let fallbackNormalized = null;
+
     for (const source of COURSE_SOURCES) {
       try {
         const payload = await wpGet(source.url, source.options || {});
-        if (__DEV__) {
-          console.log('[listMyCourses payload]', source.url, payload);
-        }
         const normalized = normalizeCoursesPayload(payload, {
           flatten: Boolean(source.flatten),
         });
+
         if (normalized.items.length || normalized.itemsOwned.length) {
-          return normalized;
+          if (normalized.itemsOwned.length) {
+            return normalized;
+          }
+          fallbackNormalized = fallbackNormalized ?? normalized;
         }
       } catch {
         // try next endpoint
       }
     }
 
-    return { items: [], itemsOwned: [], total: 0, owned: 0 };
+    const unionFallback = await buildUnionFallback();
+    if (unionFallback.itemsOwned.length) {
+      return unionFallback;
+    }
+    if (unionFallback.items.length) {
+      fallbackNormalized = fallbackNormalized ?? unionFallback;
+    }
+
+    return fallbackNormalized ?? { items: [], itemsOwned: [], total: 0, owned: 0 };
   } catch (error) {
     console.log("[listMyCourses error]", error?.message || error);
     return { items: [], itemsOwned: [], total: 0, owned: 0 };
