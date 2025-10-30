@@ -1,9 +1,20 @@
 import { wpGet, wpPost } from "./wp";
 
 const OWNED_ACCESS = new Set(["owned", "member", "free"]);
+const ACCESS_REASON_OWNED = new Set([
+  "thrive_flag",
+  "purchased",
+  "purchase",
+  "granted",
+  "manual",
+]);
 
 // === Normalizadores consistentes ===
 export function normalizeOwned(course = {}) {
+  const accessReason =
+    typeof course.access_reason === "string"
+      ? course.access_reason.toLowerCase()
+      : "";
   return Boolean(
     course.isOwned ??
       course.is_owned ??
@@ -11,7 +22,9 @@ export function normalizeOwned(course = {}) {
       course.access_granted ??
       course.user_has_access ??
       course.owned_by_product ??
-      (typeof course.access === "string" && OWNED_ACCESS.has(course.access)),
+      (typeof course.access === "string" &&
+        OWNED_ACCESS.has(course.access.toLowerCase())) ||
+      (accessReason && ACCESS_REASON_OWNED.has(accessReason)),
   );
 }
 
