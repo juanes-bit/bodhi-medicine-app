@@ -15,17 +15,24 @@ export function normalizeOwned(course = {}) {
     typeof course.access_reason === "string"
       ? course.access_reason.toLowerCase()
       : "";
-  return Boolean(
+  const accessFlag =
+    typeof course.access === "string" &&
+    OWNED_ACCESS.has(course.access.toLowerCase());
+
+  const baseOwned =
     course.isOwned ??
-      course.is_owned ??
-      course.owned ??
-      course.access_granted ??
-      course.user_has_access ??
-      course.owned_by_product ??
-      (typeof course.access === "string" &&
-        OWNED_ACCESS.has(course.access.toLowerCase())) ||
-      (accessReason && ACCESS_REASON_OWNED.has(accessReason)),
+    course.is_owned ??
+    course.owned ??
+    course.access_granted ??
+    course.user_has_access ??
+    course.owned_by_product ??
+    (accessFlag ? true : undefined);
+
+  const reasonOwned = Boolean(
+    accessReason && ACCESS_REASON_OWNED.has(accessReason),
   );
+
+  return Boolean(baseOwned || reasonOwned);
 }
 
 export function normalizeId(c = {}) {
