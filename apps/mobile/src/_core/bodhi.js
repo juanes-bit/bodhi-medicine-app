@@ -325,6 +325,56 @@ const buildUnionFallback = async () => {
   }
 };
 
+const needsMetadataEnhancement = (item = {}) => {
+  const title = typeof item.title === "string" ? item.title.trim() : "";
+  const genericTitle = !title || /^curso\s*#\d+/i.test(title);
+  const missingImage = !item.image;
+  const missingSummary = !item.summary;
+  return genericTitle || (missingImage && missingSummary);
+};
+
+const enhanceCoursesMetadata = async (result) => {
+  if (!result?.items?.length) {
+    return result;
+  }
+
+  const requiresEnhancement = result.items.some(needsMetadataEnhancement);
+  if (!requiresEnhancement) {
+    return result;
+  }
+
+  try {
+    const publicMap = await fetchPublicCoursesMap();
+    const enhancedItems = result.items.map((item) => {
+      const meta = publicMap.get(item.id);
+      if (!meta) return item;
+
+      const title = typeof item.title === "string" ? item.title.trim() : "";
+      const genericTitle = !title || /^curso\s*#\d+/i.test(title);
+
+      return {
+        ...item,
+        title: genericTitle && meta.title ? meta.title : item.title,
+        summary: item.summary ?? meta.summary ?? null,
+        image: item.image ?? meta.image ?? null,
+      };
+    });
+
+    const enhancedItemsOwned = enhancedItems.filter((course) => course.isOwned);
+    return {
+      ...result,
+      items: enhancedItems,
+      itemsOwned: enhancedItemsOwned,
+      total: Number.isFinite(result.total) ? result.total : enhancedItems.length,
+      owned: Number.isFinite(result.owned)
+        ? result.owned
+        : enhancedItemsOwned.length,
+    };
+  } catch {
+    return result;
+  }
+};
+
 export async function me() {
   // cookie-only endpoint
   return wpGet(`${MOBILE_NS}/me`, { nonce: false });
@@ -353,14 +403,12 @@ export async function listMyCourses() {
     }
 
     const unionFallback = await buildUnionFallback();
-    if (unionFallback.itemsOwned.length) {
-      return unionFallback;
-    }
-    if (unionFallback.items.length) {
-      fallbackNormalized = unionFallback;
+    let finalResult = fallbackNormalized ?? unionFallback;
+    if (!finalResult) {
+      finalResult = { items: [], itemsOwned: [], total: 0, owned: 0 };
     }
 
-    return fallbackNormalized ?? { items: [], itemsOwned: [], total: 0, owned: 0 };
+    return await enhanceCoursesMetadata(finalResult);
   } catch (error) {
     console.log("[listMyCourses error]", error?.message || error);
     return { items: [], itemsOwned: [], total: 0, owned: 0 };
