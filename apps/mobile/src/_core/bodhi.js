@@ -33,55 +33,21 @@ const MOBILE_NS = "/bodhi-mobile/v1";
 const COURSES_URL = "/wp-json/bodhi/v1/courses?mode=union";
 
 const pickId = (o = {}) => {
-  const candidate =
+  const v =
     o?.id ??
     o?.ID ??
-    o?.course_id ??
     o?.wp_post_id ??
     o?.post_id ??
+    o?.course_id ??
+    o?.wp_postId ??
     o?.courseId;
-  const numeric = Number(candidate);
-  return Number.isFinite(numeric) ? numeric : null;
+  return Number.isFinite(+v) ? +v : null;
 };
 
-const pickStr = (...vals) => {
-  for (const v of vals) {
-    if (typeof v === "string" && v.trim()) return v.trim();
-  }
-  return null;
-};
+const low = (v) => String(v ?? "").toLowerCase();
 
-const pickImage = (img) => {
-  if (!img) return null;
-  if (typeof img === "string") return img;
-  return (
-    img.url ||
-    img.src ||
-    img.source ||
-    img?.sizes?.large ||
-    img?.sizes?.full ||
-    img?.sizes?.medium ||
-    null
-  );
-};
-
-const stripHtml = (s) =>
-  typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : null;
-
-const flattenUnionItem = (x = {}) => {
-  const course = x && typeof x.course === "object" ? x.course : null;
-  if (!course) return x;
-  const base = { ...course };
-  if ("owned_by_product" in x) base.owned_by_product = x.owned_by_product;
-  if ("has_access" in x) base.has_access = x.has_access;
-  if ("access" in x && !base.access) base.access = x.access;
-  if ("products" in x && !base.products) base.products = x.products;
-  return base;
-};
-
-const inferOwned = (o = {}) => {
-  const low = (v) => String(v ?? "").toLowerCase();
-  return Boolean(
+const inferOwnedFromUnion = (o = {}) =>
+  Boolean(
     o?.isOwned ||
       o?.is_owned ||
       o?.owned ||
@@ -89,49 +55,82 @@ const inferOwned = (o = {}) => {
       o?.has_access ||
       o?.owned_by_product ||
       ["owned", "member", "free"].includes(low(o?.access)) ||
+      ["owned", "member", "free"].includes(low(o?.status)) ||
+      ["member", "owned"].includes(low(o?.membership)) ||
+      (o?.course && typeof o.course === "object" && inferOwnedFromUnion(o.course)) ||
       (Array.isArray(o?.products) &&
-        o.products.some(
-          (p) =>
-            p &&
-            (p.has_access === true || low(p?.access) === "owned"),
-        )),
+        o.products.some((p) => p && p.has_access === true)),
   );
+
+const flattenUnionItem = (x = {}) => {
+  const c = x?.course && typeof x.course === "object" ? x.course : null;
+  if (!c) return x;
+  const base = { ...c };
+  if ("owned_by_product" in x) base.owned_by_product = x.owned_by_product;
+  if ("has_access" in x) base.has_access = x.has_access;
+  if ("access" in x && !base.access) base.access = x.access;
+  if ("products" in x && !base.products) base.products = x.products;
+  return base;
 };
 
-const normalizeCourse = (raw = {}) => {
-  const flattened = flattenUnionItem(raw);
-  const id = pickId(flattened);
-  const title = pickStr(
-    flattened?.title,
-    flattened?.name,
-    flattened?.post_title,
-  );
-  const image =
-    pickImage(flattened?.cover_image) ||
-    pickImage(flattened?.image) ||
-    pickImage(flattened?.thumbnail) ||
-    pickImage(flattened?.featured_image);
-  const summary = stripHtml(
-    pickStr(
-      flattened?.summary,
-      flattened?.excerpt,
-      flattened?.description,
-      flattened?.text,
-      flattened?.post_excerpt,
-      flattened?.short_description,
-    ),
-  );
-  const isOwned = inferOwned(flattened);
-  return {
-    id,
-    title: title ?? "",
-    image: image ?? null,
-    summary: summary ?? null,
-    isOwned,
-    access: isOwned ? "owned" : "locked",
-    _raw: flattened,
-  };
-};
+async function fetchOwnedCourseIds(uid) {
+  const owned = new Set();
+  if (!uid) {
+    return owned;
+  }
+  try {
+    const products = await wpGet(`/wp-json/tva/v1/customers/${uid}/products`);
+    const list = Array.isArray(products) ? products : [];
+    for (const product of list) {
+      const pid = pickId(product);
+      if (!pid) continue;
+      try {
+        const courses = await wpGet(`/wp-json/tva/v1/products/${pid}/courses`);
+        const courseArr = Array.isArray(courses) ? courses : [];
+        for (const course of courseArr) {
+          const cid = pickId(course);
+          if (cid) owned.add(cid);
+        }
+      } catch {
+        // ignore individual product failures
+      }
+    }
+  } catch {
+    // ignore customer fetch failure
+  }
+  return owned;
+}
+
+async function fetchPublicCoursesMap() {
+  const map = new Map();
+  try {
+    const response = await wpGet("/wp-json/tva-public/v1/courses");
+    const list = Array.isArray(response) ? response : [];
+    for (const entry of list) {
+      const id = pickId(entry);
+      if (!id) continue;
+      const cleanText = (value) =>
+        typeof value === "string"
+          ? value.replace(/<[^>]+>/g, "").trim()
+          : null;
+      map.set(id, {
+        title: typeof entry?.name === "string" ? entry.name : "",
+        image:
+          typeof entry?.cover_image === "string" && entry.cover_image.trim()
+            ? entry.cover_image.trim()
+            : null,
+        summary:
+          cleanText(entry?.description) ||
+          cleanText(entry?.excerpt) ||
+          cleanText(entry?.text) ||
+          null,
+      });
+    }
+  } catch {
+    // ignore
+  }
+  return map;
+}
 
 export async function me() {
   // cookie-only endpoint
@@ -140,14 +139,70 @@ export async function me() {
 
 export async function listMyCourses() {
   try {
-    const res = await wpGet(`${COURSES_URL}&_=${Date.now()}`);
-    const rawItems = Array.isArray(res)
-      ? res
-      : Array.isArray(res?.items)
-      ? res.items
+    const meData = await me().catch(() => null);
+    const userId = pickId(meData) ?? meData?.id ?? null;
+
+    const [unionRes, ownedIds, publicMap] = await Promise.all([
+      wpGet(`${COURSES_URL}&_=${Date.now()}`).catch(() => null),
+      fetchOwnedCourseIds(userId),
+      fetchPublicCoursesMap(),
+    ]);
+
+    const raws = Array.isArray(unionRes)
+      ? unionRes
+      : Array.isArray(unionRes?.items)
+      ? unionRes.items
       : [];
 
-    const items = rawItems.map(normalizeCourse);
+    const items = raws.map((raw = {}) => {
+      const flattened = flattenUnionItem(raw);
+      const id = pickId(flattened);
+      const publicCourse = id ? publicMap.get(id) : null;
+
+      const title =
+        (typeof flattened?.title === "string" && flattened.title) ||
+        (typeof flattened?.name === "string" && flattened.name) ||
+        (typeof flattened?.post_title === "string" && flattened.post_title) ||
+        (publicCourse?.title ?? "");
+
+      const imageCandidate =
+        (typeof flattened?.cover_image === "string" && flattened.cover_image) ||
+        (typeof flattened?.image === "string" && flattened.image) ||
+        (typeof flattened?.thumbnail === "string" && flattened.thumbnail) ||
+        (typeof flattened?.featured_image === "string" &&
+          flattened.featured_image) ||
+        publicCourse?.image ||
+        null;
+
+      const sanitize = (value) =>
+        typeof value === "string"
+          ? value.replace(/<[^>]+>/g, "").trim() || null
+          : null;
+
+      const summary =
+        sanitize(flattened?.summary) ||
+        sanitize(flattened?.excerpt) ||
+        sanitize(flattened?.description) ||
+        sanitize(flattened?.text) ||
+        sanitize(flattened?.post_excerpt) ||
+        sanitize(flattened?.short_description) ||
+        publicCourse?.summary ||
+        null;
+
+      const isOwned =
+        (id !== null && ownedIds.has(id)) || inferOwnedFromUnion(flattened);
+
+      return {
+        id,
+        title: title || "",
+        image: imageCandidate || null,
+        summary,
+        isOwned,
+        access: isOwned ? "owned" : "locked",
+        _raw: flattened,
+      };
+    });
+
     const itemsOwned = items.filter((item) => item.isOwned);
     return { items, itemsOwned, total: items.length, owned: itemsOwned.length };
   } catch (error) {
