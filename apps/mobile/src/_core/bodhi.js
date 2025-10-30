@@ -413,7 +413,7 @@ export async function listMyCourses() {
 
         if (normalized.items.length || normalized.itemsOwned.length) {
           if (normalized.itemsOwned.length) {
-            return normalized;
+            return await enhanceCoursesMetadata(normalized);
           }
           fallbackNormalized = fallbackNormalized ?? normalized;
         }
