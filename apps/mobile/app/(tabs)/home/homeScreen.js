@@ -206,11 +206,11 @@ const HomeScreen = () => {
           {categories()}
           <View style={styles.sectionWrapper}>
             {title({ title: "Mis cursos" })}
-            {acquiredCourses(acquiredItems)}
+            {renderOwnedCourses(acquiredItems)}
           </View>
           <View style={styles.sectionWrapper}>
             {title({ title: "Cursos populares" })}
-            {popularCourses(popularCoursesData)}
+            {renderPopularCourses(popularCoursesData)}
           </View>
           <View style={styles.sectionWrapper}>
             {title({ title: "Inscríbete" })}
@@ -301,7 +301,7 @@ const HomeScreen = () => {
     );
   }
 
-  function popularCourses(list = []) {
+  function renderPopularCourses(list = []) {
     const arr = Array.isArray(list) ? list : [];
     if (!arr.length) {
       return null;
@@ -366,7 +366,7 @@ const HomeScreen = () => {
     );
   }
 
-  function acquiredCourses(list = []) {
+  function renderOwnedCourses(list = []) {
     const arr = Array.isArray(list) ? list : [];
     if (!arr.length) {
       return <EmptyState text="Aún no tienes cursos adquiridos." />;
