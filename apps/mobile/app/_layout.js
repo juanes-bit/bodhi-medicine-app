@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AppState, StatusBar } from 'react-native';
 import {
   useFonts,
@@ -9,6 +9,7 @@ import {
   Montserrat_600SemiBold,
   Montserrat_700Bold,
 } from '@expo-google-fonts/montserrat';
+import { restoreSession } from '../src/wpSession';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -19,20 +20,42 @@ export default function RootLayout() {
     Montserrat_600SemiBold,
     Montserrat_700Bold,
   });
+  const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    if (loaded) {
+    let mounted = true;
+    (async () => {
+      try {
+        await restoreSession();
+      } catch (error) {
+        console.warn('[RootLayout] restoreSession failed', error);
+      } finally {
+        if (mounted) {
+          setSessionReady(true);
+        }
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (loaded && sessionReady) {
       SplashScreen.hideAsync();
     }
+  }, [loaded, sessionReady]);
+
+  useEffect(() => {
     const subscription = AppState.addEventListener("change", (_) => {
       StatusBar.setBarStyle("dark-content");
     });
     return () => {
       subscription.remove();
     };
-  }, [loaded]);
+  }, []);
 
-  if (!loaded) {
+  if (!loaded || !sessionReady) {
     return null;
   }
 

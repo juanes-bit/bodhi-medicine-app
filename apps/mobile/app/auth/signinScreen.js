@@ -17,6 +17,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useNavigation } from "expo-router";
 import { wpLogin, wpFetch } from "../../src/_core/wp";
+import { persistSession } from "../../src/wpSession";
 
 function SigninScreen() {
 
@@ -73,6 +74,11 @@ function SigninScreen() {
         updateState({ submitting: true });
         try {
             await wpLogin(username, password);
+            try {
+                await persistSession();
+            } catch (persistError) {
+                console.warn("[SigninScreen] persistSession failed", persistError);
+            }
             try {
                 const profile = await wpFetch("/wp-json/wp/v2/users/me", { method: "GET" });
                 console.log("[me data]", profile);
