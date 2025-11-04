@@ -66,7 +66,6 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 # === Bodhi extra ignore ===
-backups/
 web/.jar
 web/.login.out
 web/.token.out
