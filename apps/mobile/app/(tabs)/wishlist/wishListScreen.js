@@ -135,7 +135,7 @@ const WishListScreen = () => {
                 toolbarMaxHeight={230}
                 src={require('../../../assets/images/appbar_bg.png')}
             >
-                {listData.length == 0 ?
+                {listData.length === 0 ?
                     <View style={{
                         flex: 0.7,
                         justifyContent: 'center',

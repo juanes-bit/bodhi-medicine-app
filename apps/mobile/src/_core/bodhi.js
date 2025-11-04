@@ -210,47 +210,6 @@ const normalizeCoursesPayload = (payload = {}, { flatten = false } = {}) => {
   return { items, itemsOwned, total, owned };
 };
 
-const fetchOwnedCourseIds = async (userId) => {
-  const owned = new Set();
-  if (!Number.isFinite(userId)) {
-    return owned;
-  }
-  try {
-    const productsPayload = await wpGet(`/wp-json/tva/v1/customers/${userId}/products`);
-    const productsSource = productsPayload?.data ?? productsPayload;
-    const products = Array.isArray(productsSource?.items)
-      ? productsSource.items
-      : Array.isArray(productsSource)
-      ? productsSource
-      : [];
-
-    for (const product of products) {
-      const productId = pickId(product);
-      if (!productId) continue;
-      try {
-        const coursesPayload = await wpGet(`/wp-json/tva/v1/products/${productId}/courses`);
-        const coursesSource = coursesPayload?.data ?? coursesPayload;
-        const courses = Array.isArray(coursesSource?.items)
-          ? coursesSource.items
-          : Array.isArray(coursesSource)
-          ? coursesSource
-          : [];
-        for (const course of courses) {
-          const courseId = pickId(course);
-          if (courseId) {
-            owned.add(courseId);
-          }
-        }
-      } catch {
-        // ignore individual course failures
-      }
-    }
-  } catch {
-    // ignore customer fetch failure
-  }
-  return owned;
-};
-
 const fetchPublicCoursesMap = async () => {
   const map = new Map();
   try {

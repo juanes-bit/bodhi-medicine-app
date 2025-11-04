@@ -15,7 +15,7 @@ const SplashScreen = () => {
         return () => {
             clearTimeout(timer);
         }
-    }, [])
+    }, [navigation])
 
     return (
         <View style={{ flex: 1, backgroundColor: Colors.primaryColor }} >

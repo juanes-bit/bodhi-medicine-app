@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Colors, Fonts, Sizes } from '../../constant/styles';
 import { StyleSheet, View, Text, TouchableOpacity, BackHandler } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -7,11 +7,36 @@ import MyStatusBar from '../../component/myStatusBar';
 import { useFocusEffect } from '@react-navigation/native';
 
 export default function TabLayout() {
+  const [backClickCount, setBackClickCount] = useState(0);
+  const resetTimerRef = useRef(null);
 
-  const backAction = () => {
-    backClickCount == 1 ? BackHandler.exitApp() : _spring();
+  const handleSpring = useCallback(() => {
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+    }
+    setBackClickCount(1);
+    resetTimerRef.current = setTimeout(() => {
+      setBackClickCount(0);
+      resetTimerRef.current = null;
+    }, 1000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current) {
+        clearTimeout(resetTimerRef.current);
+      }
+    };
+  }, []);
+
+  const backAction = useCallback(() => {
+    if (backClickCount === 1) {
+      BackHandler.exitApp();
+    } else {
+      handleSpring();
+    }
     return true;
-  };
+  }, [backClickCount, handleSpring]);
 
   useFocusEffect(
     useCallback(() => {
@@ -19,17 +44,8 @@ export default function TabLayout() {
       return () => {
         backHandler.remove();
       };
-    }, [backAction])
+    }, [backAction]),
   );
-
-  function _spring() {
-    setBackClickCount(1)
-    setTimeout(() => {
-      setBackClickCount(0)
-    }, 1000)
-  }
-
-  const [backClickCount, setBackClickCount] = useState(0);
 
   return (
     <View style={{ flex: 1 }}>
@@ -60,7 +76,7 @@ export default function TabLayout() {
         />
       </Tabs>
       {
-        backClickCount == 1
+        backClickCount === 1
           ?
           <View style={styles.animatedView}>
             <Text style={{ ...Fonts.white15Regular }}>
@@ -126,10 +142,10 @@ export default function TabLayout() {
                   <View style={styles.focusedTabWrapper}>
                     <MaterialIcons
                       name={
-                        index == 0 ? 'home' :
-                          index == 1 ? 'favorite-border' :
-                            index == 2 ? 'search' :
-                              index == 3 ? 'library-books' : 'settings'}
+                        index === 0 ? 'home'
+                          : index === 1 ? 'favorite-border'
+                            : index === 2 ? 'search'
+                              : index === 3 ? 'library-books' : 'settings'}
                       size={27}
                       color={Colors.orangeColor}
                     />
@@ -147,10 +163,10 @@ export default function TabLayout() {
                   :
                   <MaterialIcons
                     name={
-                      index == 0 ? 'home' :
-                        index == 1 ? 'favorite-border' :
-                          index == 2 ? 'search' :
-                            index == 3 ? 'library-books' : 'settings'}
+                      index === 0 ? 'home'
+                        : index === 1 ? 'favorite-border'
+                          : index === 2 ? 'search'
+                            : index === 3 ? 'library-books' : 'settings'}
                     size={27}
                     color={Colors.orangeColor}
                   />

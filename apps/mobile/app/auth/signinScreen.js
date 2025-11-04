@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
     Text,
     View,
@@ -23,10 +23,42 @@ function SigninScreen() {
 
     const navigation = useNavigation();
 
-    const backAction = () => {
-        backClickCount == 1 ? BackHandler.exitApp() : _spring();
+    const [state, setState] = useState({
+        passwordVisible: false,
+        passwordFocus: false,
+        usernameFocus: false,
+        backClickCount: 0,
+        username: "",
+        password: "",
+        submitting: false,
+    });
+
+    const updateState = useCallback((data) => {
+        setState((prev) => ({ ...prev, ...data }));
+    }, []);
+
+    const backClickCount = state.backClickCount;
+    const resetTimerRef = useRef(null);
+
+    const handleSpring = useCallback(() => {
+        if (resetTimerRef.current) {
+            clearTimeout(resetTimerRef.current);
+        }
+        updateState({ backClickCount: 1 });
+        resetTimerRef.current = setTimeout(() => {
+            updateState({ backClickCount: 0 });
+            resetTimerRef.current = null;
+        }, 1000);
+    }, [updateState]);
+
+    const backAction = useCallback(() => {
+        if (backClickCount === 1) {
+            BackHandler.exitApp();
+        } else {
+            handleSpring();
+        }
         return true;
-    };
+    }, [backClickCount, handleSpring]);
 
     useFocusEffect(
         useCallback(() => {
@@ -37,30 +69,18 @@ function SigninScreen() {
         }, [backAction])
     );
 
-    function _spring() {
-        updateState({ backClickCount: 1 });
-        setTimeout(() => {
-            updateState({ backClickCount: 0 })
-        }, 1000)
-    }
-
-    const [state, setState] = useState({
-        passwordVisible: false,
-        passwordFocus: false,
-        usernameFocus: false,
-        backClickCount: 0,
-        username: "",
-        password: "",
-        submitting: false,
-    })
-
-    const updateState = (data) => setState((state) => ({ ...state, ...data }))
+    useEffect(() => {
+        return () => {
+            if (resetTimerRef.current) {
+                clearTimeout(resetTimerRef.current);
+            }
+        };
+    }, []);
 
     const {
         passwordVisible,
         passwordFocus,
         usernameFocus,
-        backClickCount,
         username,
         password,
         submitting,
@@ -122,7 +142,7 @@ function SigninScreen() {
                 </View>
             </ImageBackground>
             {
-                backClickCount == 1
+                backClickCount === 1
                     ?
                     <View style={[styles.animatedView]}>
                         <Text style={{ ...Fonts.white15Regular }}>

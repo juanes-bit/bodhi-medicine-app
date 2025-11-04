@@ -157,12 +157,12 @@ const TakeCourseScreen = () => {
                     >
                         <View
                             style={{
-                                borderColor: currentIndex == index ? Colors.primaryColor : 'gray',
+                                borderColor: currentIndex === index ? Colors.primaryColor : 'gray',
                                 ...styles.paymentMethosSelectionStyle
                             }}
                         >
                             {
-                                currentIndex == index
+                                currentIndex === index
                                     ?
                                     <View style={{ backgroundColor: Colors.primaryColor, width: 10.0, height: 10.0, borderRadius: 5.0 }} />
                                     :
@@ -181,7 +181,7 @@ const TakeCourseScreen = () => {
                         resizeMode="cover"
                     />
                 </TouchableOpacity>
-                {index == 3 ?
+                {index === 3 ?
                     null :
                     <View style={{
                         backgroundColor: Colors.grayColor, height: 0.5,

@@ -15,7 +15,7 @@ import { useRouter } from "expo-router";
 import { useCourseDetail } from "../courseDetail/courseDetailContext";
 
 const CourseOverViewScreen = () => {
-  const { courseId, detail, progress } = useCourseDetail();
+  const { detail, progress } = useCourseDetail();
   const router = useRouter();
   const {
     data,
@@ -23,7 +23,8 @@ const CourseOverViewScreen = () => {
     isFetching,
     error: queryError,
   } = useMyCoursesQuery({ retry: 1 });
-  const courses = data?.items ?? [];
+  const items = data?.items;
+  const courses = useMemo(() => (Array.isArray(items) ? items : []), [items]);
   const fetchError = useMemo(() => {
     if (data?.error) return String(data.error);
     if (queryError) return String(queryError?.message || queryError);

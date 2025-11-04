@@ -21,18 +21,13 @@ const AccountSettingScreen = () => {
         email: '',
         changeEmail: '',
         passwordDialog: false,
-        password: '',
         changePassword: '',
         isLogout: false,
     })
 
-    const [profileLoading, setProfileLoading] = useState(true);
-
     const updateState = (data) => setState((state) => ({ ...state, ...data }))
 
     const {
-        displayName,
-        avatar,
         phoneDialog,
         phone,
         changePhone,
@@ -40,7 +35,6 @@ const AccountSettingScreen = () => {
         email,
         changeEmail,
         passwordDialog,
-        password,
         changePassword,
         isLogout,
     } = state;
@@ -69,7 +63,7 @@ const AccountSettingScreen = () => {
             } catch (error) {
                 console.log('[account] profile error', error?.message || error);
             } finally {
-                if (active) setProfileLoading(false);
+                // no-op
             }
         })();
 
@@ -211,7 +205,7 @@ const AccountSettingScreen = () => {
                     style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.2)" }}
                 >
                     <KeyboardAvoidingView
-                        behavior={Platform.OS == 'ios' ? 'padding' : null}
+                        behavior={Platform.OS === 'ios' ? 'padding' : null}
                         style={{ justifyContent: "center", flex: 1 }}
                     >
                         <TouchableOpacity
@@ -243,6 +237,7 @@ const AccountSettingScreen = () => {
                                 }}>
                                     <TextInput
                                         onChangeText={(value) => updateState({ changePassword: value })}
+                                        value={changePassword}
                                         style={{ ...Fonts.black15Bold, paddingBottom: Sizes.fixPadding }}
                                         placeholder='Nueva contraseña'
                                         placeholderTextColor={Colors.grayColor}
@@ -279,7 +274,7 @@ const AccountSettingScreen = () => {
                                         onPress={() => {
                                             updateState({
                                                 passwordDialog: false,
-                                                password: changePassword,
+                                                changePassword: '',
                                             })
                                         }}
                                         style={styles.okButtonStyle}
@@ -313,7 +308,7 @@ const AccountSettingScreen = () => {
                     style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.2)" }}
                 >
                     <KeyboardAvoidingView
-                        behavior={Platform.OS == 'ios' ? 'padding' : null}
+                        behavior={Platform.OS === 'ios' ? 'padding' : null}
                         style={{ justifyContent: "center", flex: 1 }}
                     >
                         <TouchableOpacity
@@ -385,7 +380,7 @@ const AccountSettingScreen = () => {
                     style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.2)" }}
                 >
                     <KeyboardAvoidingView
-                        behavior={Platform.OS == 'ios' ? 'padding' : null}
+                        behavior={Platform.OS === 'ios' ? 'padding' : null}
                         style={{ justifyContent: "center", flex: 1 }}
                     >
                         <TouchableOpacity

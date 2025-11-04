@@ -3,8 +3,7 @@ import { Text, View, Dimensions, TouchableOpacity, StyleSheet } from "react-nati
 import CollapsingToolbar from "../../component/sliverAppBar";
 import { Fonts, Sizes, Colors } from "../../constant/styles";
 import { MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
-import { Switch, TouchableRipple } from 'react-native-paper';
-import { Modal } from 'react-native-paper';
+import { Modal, Switch, TouchableRipple } from 'react-native-paper';
 import MyStatusBar from "../../component/myStatusBar";
 import { useNavigation } from "expo-router";
 

@@ -132,7 +132,7 @@ const NotificationScreen = () => {
             <MyStatusBar />
             <View style={styles.container}>
                 {header()}
-                {listData.length == 0 ?
+                {listData.length === 0 ?
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1F3F6' }}>
                         <Ionicons name="notifications-off-outline" size={70} color="gray" />
                         <Text style={{ ...Fonts.gray17Bold, marginTop: Sizes.fixPadding * 2.0 }}>

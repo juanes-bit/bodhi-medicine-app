@@ -54,9 +54,18 @@ const HomeScreen = () => {
     isFetching: coursesFetching,
   } = useMyCoursesQuery({ retry: 1 });
 
+  const items = coursesData?.items;
+  const ownedItems = coursesData?.itemsOwned;
+
   const user = profileData ?? null;
-  const allCourses = coursesData?.items ?? [];
-  const ownedCourses = coursesData?.itemsOwned ?? [];
+  const allCourses = useMemo(
+    () => (Array.isArray(items) ? items : []),
+    [items],
+  );
+  const ownedCourses = useMemo(
+    () => (Array.isArray(ownedItems) ? ownedItems : []),
+    [ownedItems],
+  );
   const popularCourses = useMemo(
     () => allCourses.filter((course) => !course.isOwned),
     [allCourses],
@@ -82,9 +91,6 @@ const HomeScreen = () => {
   const popularCoursesData = useMemo(() => {
     return popularCourses.length ? popularCourses : POPULAR_COURSES_FALLBACK;
   }, [popularCourses]);
-
-  const acquiredItems = ownedCourses;
-  const acquiredSectionTitle = "Mis cursos";
 
   const firstName =
     typeof user?.name === "string" && user.name.trim()
@@ -159,7 +165,7 @@ const HomeScreen = () => {
           {categories()}
           <View style={styles.sectionWrapper}>
             {title({ title: "Mis cursos" })}
-            {renderOwnedCourses(acquiredItems)}
+            {renderOwnedCourses(ownedCourses)}
           </View>
           <View style={styles.sectionWrapper}>
             {title({ title: "Cursos populares" })}
@@ -175,18 +181,6 @@ const HomeScreen = () => {
   );
 
   function categories() {
-    const renderItem = ({ item }) => (
-      <View style={styles.moduleItemContainer}>
-        <Image
-          source={item.image}
-          style={styles.moduleImageStyle}
-          resizeMode="cover"
-        />
-        <Text style={styles.moduleTitleStyle}>{item.moduleTitle}</Text>
-        <Text style={styles.moduleDatesStyle}>{item.dates}</Text>
-      </View>
-    );
-
     return (
       <View style={{ marginTop: Sizes.fixPadding * 2.0 }}>
         <View style={styles.continueWatchingContainer}>
@@ -482,8 +476,6 @@ const HomeScreen = () => {
     return <Text style={styles.sectionTitle}>{title}</Text>;
   }
 };
-
-const modulesList = [];
 
 const SKELETON_ITEMS = [0, 1, 2];
 

@@ -104,7 +104,7 @@ const VerificationScreen = () => {
                 value={otpInput}
                 onChange={(val) => {
                     setotpInput(val);
-                    if (val.length == 4) {
+                    if (val.length === 4) {
                         Keyboard.dismiss();
                         setisLoading(true)
                         setTimeout(() => {

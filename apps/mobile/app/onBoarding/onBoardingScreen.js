@@ -1,4 +1,4 @@
-import React, { useState, useCallback, createRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -41,10 +41,30 @@ const OnBoardingScreen = () => {
 
   const navigation = useNavigation();
 
-  const backAction = () => {
-    backClickCount == 1 ? BackHandler.exitApp() : _spring();
+  const [backClickCount, setBackClickCount] = useState(0);
+  const [currentScreen, setCurrentScreen] = useState(0);
+  const resetTimerRef = useRef(null);
+  const listRef = useRef(null);
+
+  const triggerBackHint = useCallback(() => {
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+    }
+    setBackClickCount(1);
+    resetTimerRef.current = setTimeout(() => {
+      setBackClickCount(0);
+      resetTimerRef.current = null;
+    }, 1000);
+  }, []);
+
+  const backAction = useCallback(() => {
+    if (backClickCount === 1) {
+      BackHandler.exitApp();
+    } else {
+      triggerBackHint();
+    }
     return true;
-  };
+  }, [backClickCount, triggerBackHint]);
 
   useFocusEffect(
     useCallback(() => {
@@ -52,25 +72,21 @@ const OnBoardingScreen = () => {
       return () => {
         backHandler.remove();
       };
-    }, [backAction])
+    }, [backAction]),
   );
 
-  function _spring() {
-    setBackClickCount(1);
-    setTimeout(() => {
-      setBackClickCount(0);
-    }, 1000);
-  }
-
-  const listRef = createRef();
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current) {
+        clearTimeout(resetTimerRef.current);
+      }
+    };
+  }, []);
 
   const scrollToIndex = ({ index }) => {
-    listRef.current.scrollToIndex({ animated: true, index: index });
+    listRef.current?.scrollToIndex({ animated: true, index });
     setCurrentScreen(index);
   };
-
-  const [backClickCount, setBackClickCount] = useState(0);
-  const [currentScreen, setCurrentScreen] = useState(0);
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.whiteColor }}>
@@ -78,7 +94,7 @@ const OnBoardingScreen = () => {
       <View style={{ flex: 1 }}>
         {onboardingContent()}
       </View>
-      {currentScreen == 2 ? getStartedButton() : skipAndNextButton()}
+      {currentScreen === 2 ? getStartedButton() : skipAndNextButton()}
       {exitInfo()}
     </View>
   );
@@ -111,15 +127,15 @@ const OnBoardingScreen = () => {
             <View
               key={`${item.id}`}
               style={{
-                width: currentScreen == index ? 11.0 : 7.0,
-                height: currentScreen == index ? 11.0 : 7.0,
-                borderRadius: currentScreen == index ? 5.5 : 3.5,
+                width: currentScreen === index ? 11.0 : 7.0,
+                height: currentScreen === index ? 11.0 : 7.0,
+                borderRadius: currentScreen === index ? 5.5 : 3.5,
                 backgroundColor:
-                  currentScreen == index
+                  currentScreen === index
                     ? 'rgba(0, 0, 0, 0.4)'
                     : 'rgba(0, 0, 0, 0.2)',
                 marginHorizontal: Sizes.fixPadding - 8.0,
-                opacity: currentScreen == index ? 1 : 0.6,
+                opacity: currentScreen === index ? 1 : 0.6,
               }}
             ></View>
           ))}
@@ -187,7 +203,7 @@ const OnBoardingScreen = () => {
 
   function exitInfo() {
     return (
-      backClickCount == 1 ? (
+      backClickCount === 1 ? (
         <View style={styles.animatedView}>
           <Text style={{ ...Fonts.white15Regular }}>
             Press Back Once Again to Exit
