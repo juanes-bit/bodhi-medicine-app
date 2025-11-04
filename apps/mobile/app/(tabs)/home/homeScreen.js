@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
   Text,
   View,
@@ -10,12 +10,14 @@ import {
   Image,
   Alert,
 } from "react-native";
+import { Image as ExpoImage } from "expo-image";
 import { Colors, Fonts, Sizes, CommonStyles } from "../../../constant/styles";
 import { MaterialIcons } from "@expo/vector-icons";
 import Carousel from "react-native-snap-carousel-v4";
 import CollapsingToolbar from "../../../component/sliverAppBar";
 import { useNavigation, useRouter } from "expo-router";
-import { listMyCourses, me } from "../../../src/_core/bodhi";
+import { useMyCoursesQuery, useProfileQuery } from "../../../src/hooks/useBodhiQueries";
+import Skeleton from "../../../component/skeleton";
 
 const placeholderCourseImage = require("../../../assets/images/new_course/new_course_4.png");
 
@@ -45,12 +47,23 @@ const HomeScreen = () => {
   const router = useRouter();
   const flatListRef = useRef(null);
 
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [allCourses, setAllCourses] = useState([]);
-  const [ownedCourses, setOwnedCourses] = useState([]);
-  const [popularCourses, setPopularCourses] = useState([]);
-  const [coursesError, setCoursesError] = useState(null);
+  const { data: profileData } = useProfileQuery({ retry: 1 });
+  const {
+    data: coursesData,
+    isLoading: coursesLoading,
+    isFetching: coursesFetching,
+  } = useMyCoursesQuery({ retry: 1 });
+
+  const user = profileData ?? null;
+  const allCourses = coursesData?.items ?? [];
+  const ownedCourses = coursesData?.itemsOwned ?? [];
+  const popularCourses = useMemo(
+    () => allCourses.filter((course) => !course.isOwned),
+    [allCourses],
+  );
+  const coursesError = coursesData?.error ?? null;
+  const shouldShowSkeleton = coursesLoading && !coursesData;
+  const isRefreshing = coursesFetching && !shouldShowSkeleton;
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
@@ -66,63 +79,6 @@ const HomeScreen = () => {
     return unsubscribe;
   }, [navigation]);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    (async () => {
-      if (!isMounted) return;
-
-      setLoading(true);
-
-      try {
-        const profile = await me().catch(() => null);
-        if (isMounted && profile) {
-          setUser(profile);
-        }
-
-        const {
-          items: normalizedItems = [],
-          itemsOwned = [],
-          total = 0,
-          owned = 0,
-        } = await listMyCourses(); // items ya vienen con .isOwned normalizado e id estable
-        if (!isMounted) return;
-
-        if (__DEV__) {
-          console.log('[home] courses', { total, owned });
-        }
-
-        setAllCourses(normalizedItems);
-        setOwnedCourses(itemsOwned);
-        setPopularCourses(
-          normalizedItems.filter((course) => !course.isOwned),
-        );
-        setCoursesError(null);
-      } catch (error) {
-        if (__DEV__) {
-          console.log('[home] list error', error);
-        }
-        if (isMounted) {
-          setCoursesError(String(error?.message || error));
-          setAllCourses([]);
-          setOwnedCourses([]);
-          setPopularCourses([]);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  
-  
-
   const popularCoursesData = useMemo(() => {
     return popularCourses.length ? popularCourses : POPULAR_COURSES_FALLBACK;
   }, [popularCourses]);
@@ -134,14 +90,6 @@ const HomeScreen = () => {
     typeof user?.name === "string" && user.name.trim()
       ? user.name.trim().split(/\s+/)[0]
       : null;
-
-  if (loading) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <Text style={{ ...Fonts.white15Regular }}>Cargando tus cursos...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -167,11 +115,16 @@ const HomeScreen = () => {
               <Text style={{ ...Fonts.black25Bold, color: Colors.whiteColor }}>
                 {firstName ? `Hola, ${firstName}` : "Inicio"}
               </Text>
-      {loading ? (
-        <Text style={{ ...Fonts.white15Regular, marginTop: 4 }}>
-          Cargando tus cursos...
-        </Text>
-      ) : null}
+              {shouldShowSkeleton ? (
+                <Text style={{ ...Fonts.white15Regular, marginTop: 4 }}>
+                  Cargando tus cursos...
+                </Text>
+              ) : null}
+              {isRefreshing ? (
+                <Text style={{ ...Fonts.white15Regular, marginTop: 4 }}>
+                  Actualizando cursos...
+                </Text>
+              ) : null}
               {coursesError ? (
                 <Text style={{ ...Fonts.white15Regular, marginTop: 4 }}>
                   {coursesError}
@@ -301,28 +254,66 @@ const HomeScreen = () => {
     );
   }
 
+  function renderCourseSkeletons(key) {
+    return (
+      <FlatList
+        data={SKELETON_ITEMS}
+        keyExtractor={(item) => `${key}-${item}`}
+        renderItem={({ item }) => (
+          <View style={styles.popularCoursesContainerStyle}>
+            <Skeleton style={styles.popularCoursesImageStyle} />
+            <View style={styles.popularCoursesInformationContainerStyle}>
+              <Skeleton style={styles.courseSkeletonTitle} />
+              <Skeleton style={styles.courseSkeletonSubtitle} />
+            </View>
+          </View>
+        )}
+        showsHorizontalScrollIndicator={false}
+        horizontal
+        contentContainerStyle={{
+          paddingHorizontal: Sizes.fixPadding,
+          paddingTop: Sizes.fixPadding * 2.0,
+          paddingBottom: Sizes.fixPadding * 4.0,
+        }}
+      />
+    );
+  }
+
   function renderPopularCourses(list = []) {
-    const arr = Array.isArray(list) ? list : [];
+    if (shouldShowSkeleton) {
+      return renderCourseSkeletons("popular");
+    }
+
+    const arr =
+      Array.isArray(list) && list.length ? list : POPULAR_COURSES_FALLBACK;
+
     if (!arr.length) {
-      return null;
+      return <EmptyState text="Explora los cursos populares de Bodhi Medicine." />;
     }
 
     const renderItem = ({ item }) => {
       const handlePress = () => {
-        if (item?.isOwned) {
+        if (!item?.id) {
+          Alert.alert("Bodhi Medicine", "Información del curso no disponible.");
+          return;
+        }
+
+        if (item.isOwned) {
           router.push({
             pathname: "/courseOverView/[id]",
             params: { id: String(item.id) },
           });
           return;
         }
+
         Alert.alert("Bodhi Medicine", "Aún no tienes acceso a este curso.");
       };
 
-      const cardImage =
-        typeof item.image === "string"
-          ? { uri: item.image }
-          : item.image || placeholderCourseImage;
+      const isRemoteImage =
+        typeof item.image === "string" && item.image.trim().length > 0;
+      const cardImage = isRemoteImage
+        ? { uri: item.image }
+        : item.image || placeholderCourseImage;
 
       return (
         <TouchableOpacity
@@ -330,10 +321,12 @@ const HomeScreen = () => {
           activeOpacity={0.9}
           style={styles.popularCoursesContainerStyle}
         >
-          <Image
+          <ExpoImage
             source={cardImage}
-            resizeMode="cover"
+            contentFit="cover"
             style={styles.popularCoursesImageStyle}
+            transition={200}
+            {...(isRemoteImage ? { cachePolicy: "memory-disk" } : {})}
           />
           <View style={styles.popularCoursesInformationContainerStyle}>
             <Text style={{ ...Fonts.gray15Regular }}>{item.title || "Curso"}</Text>
@@ -367,6 +360,10 @@ const HomeScreen = () => {
   }
 
   function renderOwnedCourses(list = []) {
+    if (shouldShowSkeleton) {
+      return renderCourseSkeletons("owned");
+    }
+
     const arr = Array.isArray(list) ? list : [];
     if (!arr.length) {
       return <EmptyState text="Aún no tienes cursos adquiridos." />;
@@ -380,10 +377,11 @@ const HomeScreen = () => {
         });
       };
 
-      const cardImage =
-        typeof item.image === "string"
-          ? { uri: item.image }
-          : item.image || placeholderCourseImage;
+      const isRemoteImage =
+        typeof item.image === "string" && item.image.trim().length > 0;
+      const cardImage = isRemoteImage
+        ? { uri: item.image }
+        : item.image || placeholderCourseImage;
 
       return (
         <TouchableOpacity
@@ -391,10 +389,12 @@ const HomeScreen = () => {
           onPress={handlePress}
           style={styles.popularCoursesContainerStyle}
         >
-          <Image
+          <ExpoImage
             source={cardImage}
-            resizeMode="cover"
+            contentFit="cover"
             style={styles.popularCoursesImageStyle}
+            transition={200}
+            {...(isRemoteImage ? { cachePolicy: "memory-disk" } : {})}
           />
           <View style={styles.popularCoursesInformationContainerStyle}>
             <View style={styles.cardHeader}>
@@ -485,6 +485,8 @@ const HomeScreen = () => {
 
 const modulesList = [];
 
+const SKELETON_ITEMS = [0, 1, 2];
+
 const POPULAR_COURSES_FALLBACK = [
   {
     id: 1,
@@ -563,6 +565,17 @@ const styles = StyleSheet.create({
     marginLeft: Sizes.fixPadding,
     width: width - 160,
     marginVertical: 3.0,
+  },
+  courseSkeletonTitle: {
+    height: 18,
+    width: width * 0.45,
+    marginBottom: Sizes.fixPadding / 1.5,
+    borderRadius: Sizes.fixPadding,
+  },
+  courseSkeletonSubtitle: {
+    height: 14,
+    width: width * 0.3,
+    borderRadius: Sizes.fixPadding,
   },
   cardHeader: {
     flexDirection: 'row',

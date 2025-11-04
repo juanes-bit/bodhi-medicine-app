@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   ImageBackground,
   Text,
@@ -10,44 +10,32 @@ import {
 } from "react-native";
 import { Fonts, Sizes } from "../../constant/styles";
 import { MaterialIcons } from "@expo/vector-icons";
-import { listMyCourses } from "../../src/_core/bodhi";
+import { useMyCoursesQuery } from "../../src/hooks/useBodhiQueries";
 import { useRouter } from "expo-router";
 import { useCourseDetail } from "../courseDetail/courseDetailContext";
 
 const CourseOverViewScreen = () => {
   const { courseId, detail, progress } = useCourseDetail();
   const router = useRouter();
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const {
+    data,
+    isLoading,
+    isFetching,
+    error: queryError,
+  } = useMyCoursesQuery({ retry: 1 });
+  const courses = data?.items ?? [];
+  const fetchError = useMemo(() => {
+    if (data?.error) return String(data.error);
+    if (queryError) return String(queryError?.message || queryError);
+    return null;
+  }, [data?.error, queryError]);
+  const shouldRedirect = data?.errorStatus === 401 || queryError?.status === 401;
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const { items } = await listMyCourses();
-        if (!cancelled) {
-          setCourses(items);
-        }
-      } catch (err) {
-        if (cancelled) return;
-        if (err?.status === 401) {
-          router.replace("/auth/signinScreen");
-        } else {
-          setError(String(err?.message || err));
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [router]);
+    if (shouldRedirect) {
+      router.replace("/auth/signinScreen");
+    }
+  }, [router, shouldRedirect]);
 
   const modules = useMemo(() => {
     if (Array.isArray(detail?.modules) && detail.modules.length) {
@@ -114,7 +102,7 @@ const CourseOverViewScreen = () => {
         })}
         {divider()}
         {title({ title: "Lo que aprenderás" })}
-        {loading ? (
+        {isLoading && !data ? (
           <ActivityIndicator
             color="#444"
             style={{ marginVertical: Sizes.fixPadding }}
@@ -122,9 +110,15 @@ const CourseOverViewScreen = () => {
         ) : (
           learnFromCourse(learnData)
         )}
-        {error ? (
+        {isFetching && data ? (
+          <ActivityIndicator
+            color="#444"
+            style={{ marginVertical: Sizes.fixPadding }}
+          />
+        ) : null}
+        {fetchError ? (
           <Text style={{ ...Fonts.gray16Regular, marginTop: Sizes.fixPadding }}>
-            {error}
+            {fetchError}
           </Text>
         ) : null}
       </ScrollView>

@@ -1,4 +1,5 @@
 import { wpGet, wpPost } from "./wp";
+import { logTiming } from "./metrics";
 
 const OWNED_ACCESS = new Set(["owned", "member", "free"]);
 const ACCESS_REASON_OWNED = new Set([
@@ -396,14 +397,29 @@ const enhanceCoursesMetadata = async (result) => {
 };
 
 export async function me() {
-  // cookie-only endpoint
-  return wpGet(`${MOBILE_NS}/me`, { nonce: false });
+  const started = Date.now();
+  try {
+    const profile = await wpGet(`${MOBILE_NS}/me`, { nonce: false });
+    logTiming("wp.me", Date.now() - started);
+    return profile;
+  } catch (error) {
+    logTiming("wp.me", Date.now() - started, {
+      error: String(error?.message || error),
+      status: error?.status ?? null,
+    });
+    throw error;
+  }
 }
 
 export async function listMyCourses() {
-  try {
-    let fallbackNormalized = null;
+  const started = Date.now();
+  let resolvedSource = null;
+  let fallbackNormalized = null;
+  let fallbackSource = null;
+  let lastError = null;
+  let lastStatus = null;
 
+  try {
     for (const source of COURSE_SOURCES) {
       try {
         const payload = await wpGet(source.url, source.options || {});
@@ -411,27 +427,78 @@ export async function listMyCourses() {
           flatten: Boolean(source.flatten),
         });
 
-        if (normalized.items.length || normalized.itemsOwned.length) {
-          if (normalized.itemsOwned.length) {
-            return await enhanceCoursesMetadata(normalized);
-          }
-          fallbackNormalized = fallbackNormalized ?? normalized;
+        if (normalized.itemsOwned.length) {
+          const enhanced = await enhanceCoursesMetadata(normalized);
+          logTiming("courses.list", Date.now() - started, {
+            source: source.url,
+            items: enhanced.items.length,
+            owned: enhanced.itemsOwned.length,
+          });
+          return {
+            ...enhanced,
+            source: source.url,
+            error: null,
+            errorStatus: null,
+          };
         }
-      } catch {
-        // try next endpoint
+
+        if (
+          (normalized.items.length || normalized.itemsOwned.length) &&
+          !fallbackNormalized
+        ) {
+          fallbackNormalized = normalized;
+          fallbackSource = source.url;
+        }
+      } catch (error) {
+        lastError = error;
+        lastStatus = error?.status ?? lastStatus;
       }
     }
 
     const unionFallback = await buildUnionFallback();
-    let finalResult = fallbackNormalized ?? unionFallback;
-    if (!finalResult) {
-      finalResult = { items: [], itemsOwned: [], total: 0, owned: 0 };
+    let normalizedResult =
+      fallbackNormalized ??
+      unionFallback ?? { items: [], itemsOwned: [], total: 0, owned: 0 };
+
+    if (normalizedResult === fallbackNormalized && fallbackNormalized) {
+      resolvedSource = fallbackSource ?? "fallback-normalized";
+    } else if (unionFallback) {
+      resolvedSource = "union-fallback";
+    } else {
+      resolvedSource = "empty";
     }
 
-    return await enhanceCoursesMetadata(finalResult);
+    const enhanced = await enhanceCoursesMetadata(normalizedResult);
+    logTiming("courses.list", Date.now() - started, {
+      source: resolvedSource,
+      items: enhanced.items.length,
+      owned: enhanced.itemsOwned.length,
+    });
+
+    return {
+      ...enhanced,
+      source: resolvedSource,
+      error: null,
+      errorStatus: null,
+    };
   } catch (error) {
-    console.log("[listMyCourses error]", error?.message || error);
-    return { items: [], itemsOwned: [], total: 0, owned: 0 };
+    lastError = error ?? lastError;
+    lastStatus = error?.status ?? lastStatus ?? null;
+    logTiming("courses.list", Date.now() - started, {
+      source: resolvedSource ?? "error",
+      error: String(lastError?.message || lastError),
+      status: lastStatus,
+    });
+    console.log("[listMyCourses error]", lastError?.message || lastError);
+    return {
+      items: [],
+      itemsOwned: [],
+      total: 0,
+      owned: 0,
+      source: resolvedSource ?? "error",
+      error: String(lastError?.message || lastError),
+      errorStatus: lastStatus,
+    };
   }
 }
 
