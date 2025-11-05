@@ -193,12 +193,19 @@ const isOwnedLike = (item = {}, ownedSet = new Set()) => {
 };
 
 const normalizeMobileMyCourses = (payload = {}) => {
-  const rawItems = Array.isArray(payload?.items) ? payload.items : [];
+  const source = payload?.data ?? payload ?? {};
+  const rawItems = Array.isArray(source?.items)
+    ? source.items
+    : Array.isArray(source?.list)
+    ? source.list
+    : Array.isArray(payload)
+    ? payload
+    : [];
   const ownedListCandidates = [
-    payload?.itemsOwned,
-    payload?.owned_list,
-    payload?.owned,
-    payload?.ownedItems,
+    source?.itemsOwned,
+    source?.owned_list,
+    source?.owned,
+    source?.ownedItems,
   ];
   const ownedSet = new Set(
     ownedListCandidates
@@ -238,8 +245,8 @@ const normalizeMobileMyCourses = (payload = {}) => {
 
   const itemsOwned = items.filter((entry) => entry.isOwned);
 
-  const total = Number.isFinite(payload?.total) ? payload.total : items.length;
-  const owned = Number.isFinite(payload?.owned) ? payload.owned : itemsOwned.length;
+  const total = Number.isFinite(source?.total) ? source.total : items.length;
+  const owned = Number.isFinite(source?.owned) ? source.owned : itemsOwned.length;
 
   if (!items.length && !itemsOwned.length) {
     return null;
@@ -478,12 +485,13 @@ export async function listMyCourses() {
     const primaryPayload = await wpGet(MOBILE_COURSES_URL, { nonce: false });
     const normalizedMobile = normalizeMobileMyCourses(primaryPayload);
     if (normalizedMobile) {
+      const enhancedMobile = await enhanceCoursesMetadata(normalizedMobile);
       logTiming("courses.list", Date.now() - started, {
         source: MOBILE_COURSES_URL,
-        items: normalizedMobile.items.length,
-        owned: normalizedMobile.itemsOwned.length,
+        items: enhancedMobile.items.length,
+        owned: enhancedMobile.itemsOwned.length,
       });
-      return normalizedMobile;
+      return enhancedMobile;
     }
   } catch (error) {
     lastError = error;
