@@ -294,8 +294,8 @@ const HomeScreen = () => {
 
         if (item.isOwned) {
           router.push({
-            pathname: "/courseOverView/[id]",
-            params: { id: String(item.id) },
+            pathname: "/courseDetail/courseDetailScreen",
+            params: { courseId: String(item.id) },
           });
           return;
         }
@@ -366,8 +366,8 @@ const HomeScreen = () => {
     const renderItem = ({ item }) => {
       const handlePress = () => {
         router.push({
-          pathname: "/courseOverView/[id]",
-          params: { id: String(item.id) },
+          pathname: "/courseDetail/courseDetailScreen",
+          params: { courseId: String(item.id) },
         });
       };
 
