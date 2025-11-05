@@ -4,7 +4,7 @@ import { Text, useWindowDimensions, } from "react-native";
 import { TabView, TabBar } from 'react-native-tab-view';
 import { Fonts, Colors } from "../constant/styles";
 import CourseOverViewScreen from "../app/courseDetail/OverviewScreen";
-import CourseLessonsScreen from "../app/courseLessons/courseLessonsScreen";
+import CourseLessonsScreen from "../app/courseDetail/LessonsScreen";
 
 export default TabBarScreen = ({ navigation, setshowAccessDialog }) => {
 
