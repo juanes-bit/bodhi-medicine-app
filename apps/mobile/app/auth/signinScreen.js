@@ -16,6 +16,7 @@ import { Fonts, Sizes, Colors } from "../../constant/styles";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useNavigation } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { wpLogin, wpFetch } from "../../src/_core/wp";
 import { persistSession } from "../../src/wpSession";
 
@@ -93,7 +94,12 @@ function SigninScreen() {
         }
         updateState({ submitting: true });
         try {
-            await wpLogin(username, password);
+            const loginResponse = await wpLogin(username, password);
+            try {
+                await AsyncStorage.setItem('wp_nonce', loginResponse?.nonce ?? '');
+            } catch (nonceError) {
+                console.warn('[SigninScreen] failed to persist nonce', nonceError);
+            }
             try {
                 await persistSession();
             } catch (persistError) {
