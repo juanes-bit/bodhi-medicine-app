@@ -14,7 +14,7 @@ import CollapsingToolbar from "../../component/sliverAppBar";
 import MyStatusBar from "../../component/myStatusBar";
 import TabBarScreen from "../../component/tabBarScreen";
 import { Colors, Fonts, Sizes } from "../../constant/styles";
-import { useCourseDetail } from "./courseDetailContext";
+import { useCourseDetail } from "../../lib/courseDetailContext";
 
 const { width } = Dimensions.get("screen");
 
@@ -28,8 +28,8 @@ const formatError = (error) => {
     typeof error === "string"
       ? error
       : typeof error?.message === "string"
-        ? error.message
-        : null;
+      ? error.message
+      : null;
   if (typeof message === "string" && message.trim()) {
     try {
       const parsed = JSON.parse(message);
@@ -75,7 +75,13 @@ const resolveHeaderValue = (detail, header) => {
   const reviews =
     header?.reviews ?? detail?.reviews_count ?? detail?.rating_count ?? 0;
   const image = header?.image || detail?.image || detail?.cover_image || null;
-  return { title, category, rating, reviews, image };
+  const isOwned =
+    header?.isOwned ??
+    detail?.isOwned ??
+    detail?.is_owned ??
+    detail?.owned ??
+    false;
+  return { title, category, rating, reviews, image, isOwned };
 };
 
 function CourseDetailTabs() {
