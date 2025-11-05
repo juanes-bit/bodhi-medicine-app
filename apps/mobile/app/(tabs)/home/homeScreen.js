@@ -287,20 +287,30 @@ const HomeScreen = () => {
 
     const renderItem = ({ item }) => {
       const handlePress = () => {
-        if (!item?.id) {
+        const rawId = item?.id ?? item?.ID ?? item?.course_id ?? item?.courseId;
+        if (!rawId) {
           Alert.alert("Bodhi Medicine", "Información del curso no disponible.");
           return;
         }
 
-        if (item.isOwned) {
-          router.push({
-            pathname: "/courseDetail/courseDetailScreen",
-            params: { courseId: String(item.id) },
-          });
-          return;
-        }
-
-        Alert.alert("Bodhi Medicine", "Aún no tienes acceso a este curso.");
+        router.push({
+          pathname: "/courseDetail/courseDetailScreen",
+          params: {
+            courseId: String(rawId),
+            title: item?.title ?? item?.name ?? "",
+            image: item?.image ?? "",
+            isOwned: String(
+              Boolean(
+                item?.isOwned ||
+                  item?.is_owned ||
+                  item?.owned ||
+                  item?.access_granted ||
+                  item?.access === "owned" ||
+                  item?.access_status === "granted",
+              ),
+            ),
+          },
+        });
       };
 
       const isRemoteImage =
@@ -365,9 +375,28 @@ const HomeScreen = () => {
 
     const renderItem = ({ item }) => {
       const handlePress = () => {
+        const rawId = item?.id ?? item?.ID ?? item?.course_id ?? item?.courseId;
+        if (!rawId) {
+          Alert.alert("Bodhi Medicine", "Información del curso no disponible.");
+          return;
+        }
         router.push({
           pathname: "/courseDetail/courseDetailScreen",
-          params: { courseId: String(item.id) },
+          params: {
+            courseId: String(rawId),
+            title: item?.title ?? item?.name ?? "",
+            image: item?.image ?? "",
+            isOwned: String(
+              Boolean(
+                item?.isOwned ||
+                  item?.is_owned ||
+                  item?.owned ||
+                  item?.access_granted ||
+                  item?.access === "owned" ||
+                  item?.access_status === "granted",
+              ),
+            ),
+          },
         });
       };
 
