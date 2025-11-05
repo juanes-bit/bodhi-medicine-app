@@ -230,7 +230,7 @@ const normalizeMobileMyCourses = (payload = {}) => {
 
 const normalizeCourseEntry = (raw, ownedSet = new Set(), { flatten = false } = {}) => {
   const course = flatten ? flattenCourseEntry(raw) : raw;
-  const id = pickId(course);
+  const idNumeric = pickId(course);
   const idString = normId(course);
   const title = pickString(course?.title, course?.name, course?.post_title);
   const image = pickImage(
@@ -256,18 +256,22 @@ const normalizeCourseEntry = (raw, ownedSet = new Set(), { flatten = false } = {
     ? Number(percentRaw)
     : 0;
   const isOwned =
-    ownedSet.has(id) ||
+    ownedSet.has(idNumeric) ||
     (idString ? ownedSet.has(idString) : false) ||
     normalizeOwned(course);
   const access = isOwned ? "owned" : resolveAccess(course?.access);
+  const resolvedId = Number.isFinite(idNumeric)
+    ? idNumeric
+    : idString || null;
   return {
-    id,
+    id: resolvedId,
     title,
     image,
     summary,
     isOwned,
     access,
     percent,
+    courseId: resolvedId,
     _raw: course,
   };
 };
