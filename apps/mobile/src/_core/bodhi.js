@@ -52,8 +52,9 @@ export function normalizeId(c = {}) {
 
 const MOBILE_NS = "/bodhi-mobile/v1";
 
+const MOBILE_COURSES_URL = "/wp-json/bodhi-mobile/v1/my-courses";
+
 const COURSE_SOURCES = [
-  { url: "/wp-json/bodhi-mobile/v1/my-courses", options: { nonce: false }, flatten: false },
   { url: "/wp-json/bodhi/v1/my-courses", flatten: false },
   { url: "/wp-json/bodhi/v1/courses?mode=union", flatten: true },
 ];
@@ -158,6 +159,101 @@ const collectOwnedIds = (payload = {}) => {
       .map((value) => (typeof value === "object" ? pickId(value) : Number(value)))
       .filter((value) => Number.isFinite(value))
   );
+};
+
+const normId = (input = {}) => {
+  const raw =
+    input?.id ??
+    input?.ID ??
+    input?.post_id ??
+    input?.wp_post_id ??
+    input?.course_id ??
+    input?.wp_postId ??
+    input?.courseId ??
+    input;
+  if (raw == null) return "";
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  return String(value ?? "").trim();
+};
+
+const isOwnedLike = (item = {}, ownedSet = new Set()) => {
+  if (
+    item?.isOwned ||
+    item?.is_owned ||
+    item?.owned ||
+    item?.access_granted ||
+    item?.has_access ||
+    String(item?.access ?? "").toLowerCase() === "owned" ||
+    String(item?.access_status ?? "").toLowerCase() === "granted"
+  ) {
+    return true;
+  }
+  const id = normId(item);
+  return id ? ownedSet.has(id) : false;
+};
+
+const normalizeMobileMyCourses = (payload = {}) => {
+  const rawItems = Array.isArray(payload?.items) ? payload.items : [];
+  const ownedListCandidates = [
+    payload?.itemsOwned,
+    payload?.owned_list,
+    payload?.owned,
+    payload?.ownedItems,
+  ];
+  const ownedSet = new Set(
+    ownedListCandidates
+      .flatMap((value) => (Array.isArray(value) ? value : []))
+      .map((entry) => normId(entry))
+      .filter((value) => value)
+  );
+
+  const items = rawItems.map((item) => {
+    const id = normId(item);
+    const isOwned = isOwnedLike(item, ownedSet);
+    const summary = pickString(
+      item?.summary,
+      item?.excerpt,
+      item?.description,
+      item?.short_description,
+    );
+    const image = pickImage(
+      item?.image,
+      item?.featured_image,
+      item?.thumbnail,
+      item?.cover,
+    );
+    const percent = item?.percent ?? item?.progress?.pct ?? item?.progress ?? 0;
+
+    return {
+      id,
+      title: pickString(item?.title, item?.name, item?.course_name),
+      summary,
+      image,
+      isOwned,
+      access: isOwned ? "owned" : resolveAccess(item?.access),
+      percent: Number.isFinite(percent) ? percent : 0,
+      raw: item,
+    };
+  });
+
+  const itemsOwned = items.filter((entry) => entry.isOwned);
+
+  const total = Number.isFinite(payload?.total) ? payload.total : items.length;
+  const owned = Number.isFinite(payload?.owned) ? payload.owned : itemsOwned.length;
+
+  if (!items.length && !itemsOwned.length) {
+    return null;
+  }
+
+  return {
+    items,
+    itemsOwned,
+    total,
+    owned,
+    source: MOBILE_COURSES_URL,
+    error: null,
+    errorStatus: null,
+  };
 };
 
 const normalizeCourseEntry = (raw, ownedSet = new Set(), { flatten = false } = {}) => {
@@ -372,11 +468,27 @@ export async function me() {
 
 export async function listMyCourses() {
   const started = Date.now();
-  let resolvedSource = null;
+  let resolvedSource = MOBILE_COURSES_URL;
   let fallbackNormalized = null;
   let fallbackSource = null;
   let lastError = null;
   let lastStatus = null;
+
+  try {
+    const primaryPayload = await wpGet(MOBILE_COURSES_URL, { nonce: false });
+    const normalizedMobile = normalizeMobileMyCourses(primaryPayload);
+    if (normalizedMobile) {
+      logTiming("courses.list", Date.now() - started, {
+        source: MOBILE_COURSES_URL,
+        items: normalizedMobile.items.length,
+        owned: normalizedMobile.itemsOwned.length,
+      });
+      return normalizedMobile;
+    }
+  } catch (error) {
+    lastError = error;
+    lastStatus = error?.status ?? lastStatus;
+  }
 
   try {
     for (const source of COURSE_SOURCES) {
