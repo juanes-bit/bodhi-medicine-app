@@ -253,35 +253,68 @@ export async function wpLogin(email, password) {
     return 'No fue posible iniciar sesión. Inténtalo de nuevo.';
   };
 
-  const response = await fetch(`${BASE}/wp-json/bm/v1/form-login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-    credentials: 'include',
-  });
+  const loginCandidates = [
+    {
+      path: '/wp-admin/admin-ajax.php?action=bodhi_login',
+      options: {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ username: email, password }).toString(),
+      },
+    },
+    {
+      path: '/wp-json/bm/v1/form-login',
+      options: {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      },
+    },
+  ];
 
-  const data = await parseResponseBody(response);
-  if (!response.ok || !data || typeof data !== 'object' || !data.ok) {
-    const message = extractLoginMessage(data, response.status);
-    const error = new Error(message);
-    error.status = response.status;
-    error.code = data?.code ?? 'login_failed';
-    throw error;
+  let lastError = null;
+
+  for (const candidate of loginCandidates) {
+    try {
+      const response = await fetch(`${BASE}${candidate.path}`, {
+        ...candidate.options,
+        credentials: 'include',
+      });
+      const data = await parseResponseBody(response);
+
+      if (!response.ok || !data || typeof data !== 'object' || !data.ok) {
+        const message = extractLoginMessage(data, response.status);
+        const error = new Error(message);
+        error.status = response.status;
+        error.code = data?.code ?? 'login_failed';
+        lastError = error;
+        continue;
+      }
+
+      await syncCookieFromManager();
+
+      if (typeof data.nonce === 'string' && data.nonce) {
+        WP_NONCE = data.nonce;
+        WP_NONCE_TS = Date.now();
+      }
+
+      if (data?.user?.id) {
+        await AsyncStorage.setItem(USER_ID_KEY, String(data.user.id));
+      }
+
+      setWpSession({ cookie: WP_COOKIE, nonce: WP_NONCE });
+      await verifySession();
+      return data;
+    } catch (error) {
+      lastError = error;
+    }
   }
 
-  await syncCookieFromManager();
-  if (typeof data.nonce === 'string' && data.nonce) {
-    WP_NONCE = data.nonce;
-    WP_NONCE_TS = Date.now();
+  if (lastError) {
+    throw lastError;
   }
 
-  if (data?.user?.id) {
-    await AsyncStorage.setItem(USER_ID_KEY, String(data.user.id));
-  }
-
-  setWpSession({ cookie: WP_COOKIE, nonce: WP_NONCE });
-  await verifySession();
-  return data;
+  throw new Error('No fue posible iniciar sesión. Inténtalo de nuevo.');
 }
 
 export async function verifySession() {
