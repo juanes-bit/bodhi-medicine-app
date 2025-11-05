@@ -272,6 +272,7 @@ export async function wpLogin(email, password) {
   await syncCookieFromManager();
   if (typeof data.nonce === 'string' && data.nonce) {
     WP_NONCE = data.nonce;
+    WP_NONCE_TS = Date.now();
   }
 
   if (data?.user?.id) {
