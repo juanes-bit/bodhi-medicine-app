@@ -128,6 +128,64 @@ const pickImage = (...values) => {
   return null;
 };
 
+const coerceNumber = (value, fallback = 0) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : fallback;
+};
+
+export function normalizeCourse(item = {}, ownedSet = new Set()) {
+  const id = coerceNumber(
+    item?.id ?? item?.courseId ?? item?.course_id ?? item?.wp_post_id,
+    0,
+  );
+  const accessRaw = typeof item?.access === "string" ? item.access : null;
+  const accessNormalized = accessRaw ? accessRaw.toLowerCase() : null;
+
+  const ownedFlag =
+    item?.is_owned ??
+    item?.isOwned ??
+    item?.owned ??
+    item?.access_granted ??
+    item?.has_access ??
+    null;
+
+  const explicitOwned =
+    typeof ownedFlag === "string"
+      ? ownedFlag.toLowerCase() === "true"
+      : Boolean(ownedFlag);
+
+  const isOwned =
+    explicitOwned ||
+    accessNormalized === "owned" ||
+    ownedSet.has(id) ||
+    normalizeOwned(item);
+
+  const title = pickString(item?.title, item?.name, item?.course_name, item?.post_title);
+  const image = pickImage(item?.image, item?.featured_image, item?.thumbnail, item?.cover);
+  const excerpt =
+    sanitizeContent(item?.summary) ||
+    sanitizeContent(item?.excerpt) ||
+    sanitizeContent(item?.description) ||
+    sanitizeContent(item?.short_description) ||
+    "";
+
+  return {
+    id,
+    courseId: id,
+    title,
+    image: image ?? null,
+    excerpt,
+    summary: excerpt,
+    percent: coerceNumber(item?.percent ?? item?.progress?.pct ?? item?.progress, 0),
+    modules_count: coerceNumber(item?.modules_count ?? item?.modules?.length, 0),
+    lessons_count: coerceNumber(item?.lessons_count ?? item?.lessons?.length, 0),
+    is_owned: isOwned,
+    isOwned,
+    access: accessRaw ?? (isOwned ? "owned" : "locked"),
+    raw: item,
+  };
+}
+
 const flattenCourseEntry = (raw = {}) => {
   const inner = raw?.course && typeof raw.course === "object" ? raw.course : null;
   if (!inner) return raw;
@@ -198,15 +256,7 @@ const normalizeMobileMyCourses = (payload = {}) => {
     : [];
   const ownedSet = collectOwnedIds(source);
 
-  const items = rawItems.map((item) => {
-    const normalized = normalizeCourseEntry(item, ownedSet, { flatten: false });
-    return {
-      ...normalized,
-      access: normalized.isOwned
-        ? "owned"
-        : resolveAccess(item?.access ?? normalized.access),
-    };
-  });
+  const items = rawItems.map((item) => normalizeCourse(item, ownedSet));
 
   const itemsOwned = items.filter((entry) => entry.isOwned);
 
