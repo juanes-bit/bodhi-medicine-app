@@ -148,17 +148,28 @@ const collectOwnedIds = (payload = {}) => {
   const source = payload?.data ?? payload;
   const candidates = [
     source?.itemsOwned,
+    source?.items_owned,
     source?.ownedIds,
     source?.owned_ids,
     source?.owned_list,
+    source?.ownedItems,
     source?.owned,
   ];
-  return new Set(
-    candidates
-      .flatMap((value) => (Array.isArray(value) ? value : []))
-      .map((value) => (typeof value === "object" ? pickId(value) : Number(value)))
-      .filter((value) => Number.isFinite(value))
-  );
+  const collected = new Set();
+  for (const candidate of candidates) {
+    const list = Array.isArray(candidate) ? candidate : [];
+    for (const entry of list) {
+      const numeric = typeof entry === "object" ? pickId(entry) : Number(entry);
+      if (Number.isFinite(numeric)) {
+        collected.add(numeric);
+      }
+      const stringId = normId(entry);
+      if (stringId) {
+        collected.add(stringId);
+      }
+    }
+  }
+  return collected;
 };
 
 const normId = (input = {}) => {
@@ -176,22 +187,6 @@ const normId = (input = {}) => {
   return String(value ?? "").trim();
 };
 
-const isOwnedLike = (item = {}, ownedSet = new Set()) => {
-  if (
-    item?.isOwned ||
-    item?.is_owned ||
-    item?.owned ||
-    item?.access_granted ||
-    item?.has_access ||
-    String(item?.access ?? "").toLowerCase() === "owned" ||
-    String(item?.access_status ?? "").toLowerCase() === "granted"
-  ) {
-    return true;
-  }
-  const id = normId(item);
-  return id ? ownedSet.has(id) : false;
-};
-
 const normalizeMobileMyCourses = (payload = {}) => {
   const source = payload?.data ?? payload ?? {};
   const rawItems = Array.isArray(source?.items)
@@ -201,45 +196,15 @@ const normalizeMobileMyCourses = (payload = {}) => {
     : Array.isArray(payload)
     ? payload
     : [];
-  const ownedListCandidates = [
-    source?.itemsOwned,
-    source?.owned_list,
-    source?.owned,
-    source?.ownedItems,
-  ];
-  const ownedSet = new Set(
-    ownedListCandidates
-      .flatMap((value) => (Array.isArray(value) ? value : []))
-      .map((entry) => normId(entry))
-      .filter((value) => value)
-  );
+  const ownedSet = collectOwnedIds(source);
 
   const items = rawItems.map((item) => {
-    const id = normId(item);
-    const isOwned = isOwnedLike(item, ownedSet);
-    const summary = pickString(
-      item?.summary,
-      item?.excerpt,
-      item?.description,
-      item?.short_description,
-    );
-    const image = pickImage(
-      item?.image,
-      item?.featured_image,
-      item?.thumbnail,
-      item?.cover,
-    );
-    const percent = item?.percent ?? item?.progress?.pct ?? item?.progress ?? 0;
-
+    const normalized = normalizeCourseEntry(item, ownedSet, { flatten: false });
     return {
-      id,
-      title: pickString(item?.title, item?.name, item?.course_name),
-      summary,
-      image,
-      isOwned,
-      access: isOwned ? "owned" : resolveAccess(item?.access),
-      percent: Number.isFinite(percent) ? percent : 0,
-      raw: item,
+      ...normalized,
+      access: normalized.isOwned
+        ? "owned"
+        : resolveAccess(item?.access ?? normalized.access),
     };
   });
 
@@ -266,6 +231,7 @@ const normalizeMobileMyCourses = (payload = {}) => {
 const normalizeCourseEntry = (raw, ownedSet = new Set(), { flatten = false } = {}) => {
   const course = flatten ? flattenCourseEntry(raw) : raw;
   const id = pickId(course);
+  const idString = normId(course);
   const title = pickString(course?.title, course?.name, course?.post_title);
   const image = pickImage(
     course?.image,
@@ -281,7 +247,18 @@ const normalizeCourseEntry = (raw, ownedSet = new Set(), { flatten = false } = {
     sanitizeContent(course?.post_excerpt) ||
     sanitizeContent(course?.short_description) ||
     null;
-  const isOwned = ownedSet.has(id) || normalizeOwned(course);
+  const percentRaw =
+    course?.percent ??
+    course?.progress?.pct ??
+    course?.progress ??
+    0;
+  const percent = Number.isFinite(Number(percentRaw))
+    ? Number(percentRaw)
+    : 0;
+  const isOwned =
+    ownedSet.has(id) ||
+    (idString ? ownedSet.has(idString) : false) ||
+    normalizeOwned(course);
   const access = isOwned ? "owned" : resolveAccess(course?.access);
   return {
     id,
@@ -290,6 +267,7 @@ const normalizeCourseEntry = (raw, ownedSet = new Set(), { flatten = false } = {
     summary,
     isOwned,
     access,
+    percent,
     _raw: course,
   };
 };
