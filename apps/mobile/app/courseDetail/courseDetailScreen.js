@@ -77,13 +77,12 @@ const CourseDetailScreen = () => {
             if (courseResponse.status === "fulfilled") {
                 safeSetState(() => setDetail(courseResponse.value));
             } else if (courseResponse.status === "rejected") {
-                safeSetState(() =>
-                    setError(
-                        courseResponse.reason instanceof Error
-                            ? courseResponse.reason
-                            : new Error("No se pudo cargar la información del curso."),
-                    ),
-                );
+                const reason = courseResponse.reason;
+                const normalized =
+                    reason instanceof Error
+                        ? reason
+                        : new Error("No se pudo cargar la información del curso.");
+                safeSetState(() => setError(normalized));
             }
 
             if (progressResponse.status === "fulfilled") {
@@ -102,6 +101,26 @@ const CourseDetailScreen = () => {
         if (!courseId) return;
         refresh();
     }, [courseId, refresh]);
+
+    const getFriendlyErrorMessage = useCallback((value) => {
+        if (!value) return null;
+        if (value.status === 401 || value.status === 403) {
+            return "Necesitas iniciar sesión nuevamente para ver este curso.";
+        }
+        const raw = value.message;
+        if (typeof raw === "string" && raw.trim()) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === "object" && typeof parsed.message === "string") {
+                    return parsed.message;
+                }
+            } catch {
+                // not json
+            }
+            return raw;
+        }
+        return "No pudimos cargar la información del curso.";
+    }, []);
 
     return (
         <CourseDetailProvider
@@ -157,11 +176,11 @@ const CourseDetailScreen = () => {
                             <ActivityIndicator size="small" color={Colors.primaryColor} />
                         </View>
                     )}
-                    {error && !loading && (
+                    {error && !loading ? (
                         <Text style={styles.errorText}>
-                            {error.message || "No pudimos cargar la información del curso."}
+                            {getFriendlyErrorMessage(error)}
                         </Text>
-                    )}
+                    ) : null}
                     <TabBarScreen navigation={navigation} setshowAccessDialog={setshowAccessDialog} />
                 </CollapsingToolbar>
 
