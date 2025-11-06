@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Text,
   View,
@@ -10,6 +10,7 @@ import {
   Image,
   Alert,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image as ExpoImage } from "expo-image";
 import { Colors, Fonts, Sizes, CommonStyles } from "../../../constant/styles";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -46,10 +47,14 @@ const HomeScreen = () => {
   const navigation = useNavigation();
   const router = useRouter();
   const flatListRef = useRef(null);
+  const handledSessionExpiration = useRef(false);
+
+  const [coursesErrorMessage, setCoursesErrorMessage] = useState(null);
 
   const { data: profileData } = useProfileQuery({ retry: 1 });
   const {
     data: coursesData,
+    error: coursesErrorRaw,
     isLoading: coursesLoading,
     isFetching: coursesFetching,
   } = useMyCoursesQuery({ retry: 1 });
@@ -70,7 +75,7 @@ const HomeScreen = () => {
     () => allCourses.filter((course) => !course.isOwned),
     [allCourses],
   );
-  const coursesError = coursesData?.error ?? null;
+  const coursesError = coursesErrorMessage;
   const shouldShowSkeleton = coursesLoading && !coursesData;
   const isRefreshing = coursesFetching && !shouldShowSkeleton;
 
@@ -87,6 +92,50 @@ const HomeScreen = () => {
     });
     return unsubscribe;
   }, [navigation]);
+
+  useEffect(() => {
+    if (!coursesErrorRaw) {
+      handledSessionExpiration.current = false;
+      setCoursesErrorMessage(null);
+      return;
+    }
+
+    const status = coursesErrorRaw?.status;
+    const code = coursesErrorRaw?.code;
+    const isSessionError =
+      status === 401 ||
+      status === 403 ||
+      code === "rest_cookie_invalid_nonce" ||
+      code === "session_expired";
+
+    if (isSessionError) {
+      if (handledSessionExpiration.current) {
+        return;
+      }
+      handledSessionExpiration.current = true;
+      AsyncStorage.removeItem("wp_nonce").catch(() => {});
+      Alert.alert(
+        "Bodhi Medicine",
+        "Tu sesión expiró. Inicia sesión nuevamente.",
+        [
+          {
+            text: "Aceptar",
+            onPress: () => {
+              router.replace("/auth/signinScreen");
+            },
+          },
+        ],
+        { cancelable: false },
+      );
+      return;
+    }
+
+    const message =
+      typeof coursesErrorRaw?.body === "string" && coursesErrorRaw.body.trim()
+        ? "No fue posible cargar tus cursos. Inténtalo de nuevo más tarde."
+        : coursesErrorRaw?.message ?? "No fue posible cargar tus cursos.";
+    setCoursesErrorMessage(message);
+  }, [coursesErrorRaw, router]);
 
   const popularCoursesData = useMemo(() => {
     return popularCourses.length ? popularCourses : POPULAR_COURSES_FALLBACK;
