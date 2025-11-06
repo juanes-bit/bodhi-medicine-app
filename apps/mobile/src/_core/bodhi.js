@@ -456,6 +456,10 @@ export async function getCourse(courseId) {
   return wpGet(`/wp-json/bodhi/v1/courses/${courseId}`);
 }
 
+export async function getMobileCourse(courseId) {
+  return wpGet(`/wp-json/bodhi-mobile/v1/course/${courseId}`);
+}
+
 export async function getProgress(courseId) {
   return wpGet(`/wp-json/bodhi/v1/progress?course_id=${courseId}`);
 }

@@ -10,7 +10,7 @@ export default TabBarScreen = ({ navigation, setshowAccessDialog }) => {
 
     const [index, setIndex] = useState(0);
     const [routes] = useState([
-        { key: 'first', title: 'OverView' },
+        { key: 'first', title: 'Overview' },
         { key: 'second', title: 'Lessons' },
     ]);
 

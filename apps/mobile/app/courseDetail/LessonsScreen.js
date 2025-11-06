@@ -1,84 +1,60 @@
-import React from "react";
-import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { Colors, Fonts, Sizes } from "../../constant/styles";
-import { useCourseDetail } from "../../lib/courseDetailContext";
+import React, { useCallback } from "react";
+import { Alert, StyleSheet, View } from "react-native";
+import { useNavigation } from "expo-router";
+import LessonsTab from "../../src/courseDetail/LessonsTab";
 
-const renderLessons = (module) => {
-  if (!Array.isArray(module?.lessons) || !module.lessons.length) {
-    return (
-      <Text style={styles.emptyLessonText}>Sin lecciones disponibles.</Text>
-    );
+const showAccessDialog = (setshowAccessDialog) => {
+  if (typeof setshowAccessDialog === "function") {
+    setshowAccessDialog(true);
+    setTimeout(() => setshowAccessDialog(false), 1200);
   }
-  return module.lessons.map((lesson, index) => (
-    <Text key={lesson?.id ?? index} style={styles.lessonItem}>
-      • {lesson?.title || lesson?.name || "Lección"}
-    </Text>
-  ));
 };
 
-export default function LessonsScreen() {
-  const { loading, modules } = useCourseDetail();
+export default function LessonsScreen({ setshowAccessDialog }) {
+  const navigation = useNavigation();
 
-  if (loading) {
-    return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator color={Colors.primaryColor} />
-      </View>
-    );
-  }
+  const handlePlay = useCallback(
+    (lesson) => {
+      if (!lesson) return;
 
-  if (!Array.isArray(modules) || !modules.length) {
-    return (
-      <View style={styles.loaderContainer}>
-        <Text style={styles.emptyText}>Sin módulos disponibles.</Text>
-      </View>
-    );
-  }
+      const isLocked =
+        Boolean(lesson?.is_locked ?? lesson?.locked ?? lesson?.locked_out);
+      if (isLocked) {
+        showAccessDialog(setshowAccessDialog);
+        return;
+      }
+
+      const url =
+        (lesson?.vimeo && lesson.vimeo.player_url) ??
+        lesson?.player_url ??
+        lesson?.url;
+      const title = lesson?.title || lesson?.name || "Reproducción";
+
+      if (url) {
+        navigation.push("webPlayer", {
+          url,
+          title,
+        });
+        return;
+      }
+
+      Alert.alert(
+        "Bodhi Medicine",
+        "Este video no tiene URL disponible aún.",
+      );
+    },
+    [navigation, setshowAccessDialog],
+  );
 
   return (
     <View style={styles.container}>
-      {modules.map((module, index) => (
-        <View key={module?.id ?? `module-${index}`} style={styles.moduleBox}>
-          <Text style={styles.moduleTitle}>
-            {module?.title || module?.name || `Módulo ${index + 1}`}
-          </Text>
-          {renderLessons(module)}
-        </View>
-      ))}
+      <LessonsTab onPlay={handlePlay} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: Sizes.fixPadding * 2,
-    paddingVertical: Sizes.fixPadding * 2,
-  },
-  loaderContainer: {
-    paddingVertical: Sizes.fixPadding * 3,
-    alignItems: "center",
-  },
-  emptyText: {
-    ...Fonts.gray16Regular,
-  },
-  moduleBox: {
-    marginBottom: Sizes.fixPadding * 2,
-  },
-  moduleTitle: {
-    ...Fonts.black18Bold,
-    marginBottom: Sizes.fixPadding,
-  },
-  lessonItem: {
-    ...Fonts.gray16Regular,
-    marginBottom: Sizes.fixPadding / 2,
-  },
-  emptyLessonText: {
-    ...Fonts.gray15Regular,
-    fontStyle: "italic",
+    flex: 1,
   },
 });

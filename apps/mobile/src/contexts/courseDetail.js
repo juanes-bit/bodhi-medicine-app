@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { getCourse, getProgress } from "../_core/bodhi";
+import { getCourse, getMobileCourse, getProgress } from "../_core/bodhi";
 
 const defaultState = {
   loading: true,
@@ -19,9 +19,10 @@ const defaultState = {
   error: null,
   refresh: async () => {},
   setProgressState: () => {},
+  data: null,
 };
 
-const CourseDetailContext = createContext(defaultState);
+export const CourseDetailContext = createContext(defaultState);
 
 const normalizeHeader = (detail = {}, previous = {}) => {
   const resolvedTitle =
@@ -85,6 +86,7 @@ export function CourseDetailProvider({ courseId: rawId, preload = {}, children }
     header: normalizedPreload,
     error: null,
     isOwned: ownedFromParams,
+    data: null,
   });
 
   useEffect(() => {
@@ -109,6 +111,7 @@ export function CourseDetailProvider({ courseId: rawId, preload = {}, children }
           ...current,
           loading: false,
           error: "Curso inválido.",
+          data: null,
         }));
       }
       return;
@@ -121,9 +124,31 @@ export function CourseDetailProvider({ courseId: rawId, preload = {}, children }
       courseId: stringId,
     }));
 
+    const loadDetail = async () => {
+      try {
+        const mobileDetail = await getMobileCourse(stringId);
+        if (mobileDetail && typeof mobileDetail === "object") {
+          return mobileDetail;
+        }
+      } catch (error) {
+        const status = error?.status;
+        const code = (error?.code ?? "").toLowerCase();
+        const fallbackCodes = ["rest_route_not_found", "rest_no_route"];
+        if (
+          status === 404 ||
+          fallbackCodes.includes(code)
+        ) {
+          return getCourse(stringId);
+        }
+        throw error;
+      }
+
+      return getCourse(stringId);
+    };
+
     try {
       const [detail, progress] = await Promise.all([
-        getCourse(stringId),
+        loadDetail(),
         getProgress(stringId),
       ]);
 
@@ -144,6 +169,7 @@ export function CourseDetailProvider({ courseId: rawId, preload = {}, children }
               progress?.is_owned ||
               progress?.owned,
           ),
+        data: detail ?? null,
       }));
     } catch (error) {
       if (!aliveRef.current) return;
@@ -155,6 +181,7 @@ export function CourseDetailProvider({ courseId: rawId, preload = {}, children }
         ...current,
         loading: false,
         error: message,
+        data: null,
       }));
     }
   }, [stringId]);
