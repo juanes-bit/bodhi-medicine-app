@@ -1,4 +1,4 @@
-import { wpGet, wpPost } from "./wp";
+import { wpGet, wpPost } from "./wpClient";
 import { logTiming } from "./metrics";
 
 const OWNED_ACCESS = new Set(["owned", "member", "free"]);
