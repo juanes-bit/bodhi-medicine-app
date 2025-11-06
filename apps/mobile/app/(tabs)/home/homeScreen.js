@@ -299,15 +299,13 @@ const HomeScreen = () => {
             courseId: String(rawId),
             title: item?.title ?? item?.name ?? "",
             image: item?.image ?? "",
-            isOwned: String(
-              Boolean(
-                item?.isOwned ||
-                  item?.is_owned ||
-                  item?.owned ||
-                  item?.access_granted ||
-                  item?.access === "owned" ||
-                  item?.access_status === "granted",
-              ),
+            isOwned: Boolean(
+              item?.isOwned ||
+                item?.is_owned ||
+                item?.owned ||
+                item?.access_granted ||
+                item?.access === "owned" ||
+                item?.access_status === "granted",
             ),
           },
         });
@@ -386,15 +384,13 @@ const HomeScreen = () => {
             courseId: String(rawId),
             title: item?.title ?? item?.name ?? "",
             image: item?.image ?? "",
-            isOwned: String(
-              Boolean(
-                item?.isOwned ||
-                  item?.is_owned ||
-                  item?.owned ||
-                  item?.access_granted ||
-                  item?.access === "owned" ||
-                  item?.access_status === "granted",
-              ),
+            isOwned: Boolean(
+              item?.isOwned ||
+                item?.is_owned ||
+                item?.owned ||
+                item?.access_granted ||
+                item?.access === "owned" ||
+                item?.access_status === "granted",
             ),
           },
         });

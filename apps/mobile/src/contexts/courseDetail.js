@@ -62,24 +62,19 @@ const normalizeHeader = (detail = {}, previous = {}) => {
 
 export function CourseDetailProvider({ courseId: rawId, preload = {}, children }) {
   const stringId = rawId != null ? String(rawId) : "";
+  const ownedFromParams = Boolean(preload?.isOwned);
   const aliveRef = useRef(true);
   const normalizedPreload = useMemo(() => {
     if (!preload) return {};
-    const isOwnedValue =
-      typeof preload.isOwned === "string"
-        ? preload.isOwned === "true"
-        : preload.isOwned != null
-          ? Boolean(preload.isOwned)
-          : undefined;
     return {
       title: preload.title,
       image: preload.image,
       category: preload.category,
       rating: preload.rating,
       reviews: preload.reviews,
-      isOwned: isOwnedValue,
+      isOwned: ownedFromParams,
     };
-  }, [preload]);
+  }, [preload, ownedFromParams]);
 
   const [state, setState] = useState({
     loading: true,
@@ -89,6 +84,7 @@ export function CourseDetailProvider({ courseId: rawId, preload = {}, children }
     progress: null,
     header: normalizedPreload,
     error: null,
+    isOwned: ownedFromParams,
   });
 
   useEffect(() => {
@@ -141,6 +137,13 @@ export function CourseDetailProvider({ courseId: rawId, preload = {}, children }
         progress: progress ?? null,
         header: normalizeHeader(detail, current.header),
         error: null,
+        isOwned:
+          current.isOwned ||
+          Boolean(
+            progress?.access === "owned" ||
+              progress?.is_owned ||
+              progress?.owned,
+          ),
       }));
     } catch (error) {
       if (!aliveRef.current) return;
