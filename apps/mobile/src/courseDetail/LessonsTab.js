@@ -112,6 +112,8 @@ export default function LessonsTab({ onPlay }) {
       }}
       ItemSeparatorComponent={() => <View style={styles.separator} />}
       contentContainerStyle={styles.listContent}
+      nestedScrollEnabled
+      removeClippedSubviews={false}
     />
   );
 }

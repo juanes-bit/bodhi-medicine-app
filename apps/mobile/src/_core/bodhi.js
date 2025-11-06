@@ -464,6 +464,9 @@ export async function getProgress(courseId) {
   return wpGet(`/wp-json/bodhi/v1/progress?course_id=${courseId}`);
 }
 
+export const getLessonPlay = (lessonId) =>
+  wpGet(`/wp-json/bodhi-mobile/v1/lesson/${lessonId}/play`);
+
 export async function setProgress(courseId, lessonId, done = true) {
   return wpPost("/wp-json/bodhi/v1/progress", {
     course_id: courseId,

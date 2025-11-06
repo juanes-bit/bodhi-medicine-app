@@ -1,7 +1,8 @@
 import React, { useCallback } from "react";
 import { Alert, StyleSheet, View } from "react-native";
-import { useNavigation } from "expo-router";
+import { router } from "expo-router";
 import LessonsTab from "../../src/courseDetail/LessonsTab";
+import { getLessonPlay } from "../../src/_core/bodhi";
 
 const showAccessDialog = (setshowAccessDialog) => {
   if (typeof setshowAccessDialog === "function") {
@@ -11,10 +12,8 @@ const showAccessDialog = (setshowAccessDialog) => {
 };
 
 export default function LessonsScreen({ setshowAccessDialog }) {
-  const navigation = useNavigation();
-
   const handlePlay = useCallback(
-    (lesson) => {
+    async (lesson) => {
       if (!lesson) return;
 
       const isLocked =
@@ -30,10 +29,33 @@ export default function LessonsScreen({ setshowAccessDialog }) {
         lesson?.url;
       const title = lesson?.title || lesson?.name || "Reproducción";
 
+      const lessonId =
+        lesson?.id ??
+        lesson?.lesson_id ??
+        lesson?.wp_lesson_id ??
+        lesson?.wp_post_id ??
+        null;
+
+      if (lessonId != null) {
+        try {
+          const playback = await getLessonPlay(lessonId);
+          const hlsUrl = playback?.hls_url ?? playback?.hls;
+          if (hlsUrl) {
+            router.push({
+              pathname: "/nativePlayer",
+              params: { hls: hlsUrl, title },
+            });
+            return;
+          }
+        } catch (error) {
+          console.warn("[LessonsScreen] getLessonPlay failed", error);
+        }
+      }
+
       if (url) {
-        navigation.push("webPlayer", {
-          url,
-          title,
+        router.push({
+          pathname: "/webPlayer",
+          params: { url, title },
         });
         return;
       }
@@ -43,7 +65,7 @@ export default function LessonsScreen({ setshowAccessDialog }) {
         "Este video no tiene URL disponible aún.",
       );
     },
-    [navigation, setshowAccessDialog],
+    [setshowAccessDialog],
   );
 
   return (
