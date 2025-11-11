@@ -1,0 +1,23 @@
+[
+  {
+    "id": 234,
+    "title": "Formación Bodhi Medicine 2025",
+    "cover_image": "https://staging.bodhimedicine.com/wp-content/uploads/2025/04/5-6-1.png",
+    "category": "Formación",
+    "level": "Avanzado"
+  },
+  {
+    "id": 412,
+    "title": "Programa HeartMath",
+    "cover_image": "https://staging.bodhimedicine.com/wp-content/uploads/2025/03/new_course_5.png",
+    "category": "Programa",
+    "level": "Intermedio"
+  },
+  {
+    "id": 918,
+    "title": "Círculo Bodhi Medicine",
+    "cover_image": "https://staging.bodhimedicine.com/wp-content/uploads/2025/03/new_course_2.png",
+    "category": "Círculo",
+    "level": "Inicial"
+  }
+]

@@ -1,5 +1,14 @@
 import { wpGet, wpPost } from "./wpClient";
 import { logTiming } from "./metrics";
+import { getApiMode, API_MODES } from "./hpConfig";
+import { getUserCourses, getCourseDetail, postCompleteLesson } from "./hpClient";
+import {
+  getUserCoursesMock,
+  getCourseDetailMock,
+  postCompleteLessonMock,
+  mockGetProgress,
+} from "./hpMock";
+import { adaptUserCoursesToCards, adaptCourseDetail } from "./hpAdapters";
 
 const OWNED_ACCESS = new Set(["owned", "member", "free"]);
 const ACCESS_REASON_OWNED = new Set([
@@ -54,6 +63,14 @@ const MOBILE_NS = "/wp-json/bodhi-mobile/v1";
 
 const MOBILE_COURSES_URL = "/wp-json/bodhi-mobile/v1/my-courses";
 const NONCE_ERROR_CODE = "rest_cookie_invalid_nonce";
+
+const isHpMockEnabled = async () => {
+  try {
+    return (await getApiMode()) === API_MODES.HP_MOCK;
+  } catch {
+    return false;
+  }
+};
 
 const extractString = (value) => {
   if (!value) return "";
@@ -352,6 +369,54 @@ export async function me() {
 }
 
 export async function listMyCourses() {
+  const mode = await getApiMode();
+
+  if (mode === API_MODES.HP) {
+    const json = await getUserCourses();
+    const items = adaptUserCoursesToCards(json);
+    const itemsOwned = items.filter((course) => course.isOwned);
+    return {
+      items,
+      itemsOwned,
+      total: items.length,
+      owned: itemsOwned.length,
+      source: "hp",
+      error: null,
+      errorStatus: null,
+    };
+  }
+
+  if (mode === API_MODES.HP_MOCK) {
+    const json = await getUserCoursesMock();
+    const baseItems = adaptUserCoursesToCards(json);
+    const enrichedItems = await Promise.all(
+      baseItems.map(async (course) => {
+        try {
+          const detail = await getCourseDetailMock(course.id);
+          const container =
+            detail?.data && typeof detail.data === "object" ? detail.data : detail;
+          const percent =
+            typeof container?.progress?.percentage === "number"
+              ? container.progress.percentage
+              : course.percent;
+          return { ...course, percent };
+        } catch {
+          return course;
+        }
+      }),
+    );
+    const ownedItems = enrichedItems.filter((course) => course.isOwned);
+    return {
+      items: enrichedItems,
+      itemsOwned: ownedItems,
+      total: enrichedItems.length,
+      owned: ownedItems.length,
+      source: "hp-mock",
+      error: null,
+      errorStatus: null,
+    };
+  }
+
   const started = Date.now();
   let payload;
 
@@ -453,14 +518,33 @@ export function adaptCourseCard(course = {}) {
 }
 
 export async function getCourse(courseId) {
+  const mode = await getApiMode();
+
+  if (mode === API_MODES.HP) {
+    const json = await getCourseDetail(courseId);
+    return adaptCourseDetail(json);
+  }
+
+  if (mode === API_MODES.HP_MOCK) {
+    const json = await getCourseDetailMock(courseId);
+    return adaptCourseDetail(json);
+  }
   return wpGet(`/wp-json/bodhi/v1/courses/${courseId}`);
 }
 
 export async function getMobileCourse(courseId) {
+  if (await isHpMockEnabled()) {
+    const error = new Error("HP mock no implementa /bodhi-mobile.");
+    error.status = 404;
+    throw error;
+  }
   return wpGet(`/wp-json/bodhi-mobile/v1/course/${courseId}`);
 }
 
 export async function getProgress(courseId) {
+  if (await isHpMockEnabled()) {
+    return mockGetProgress(courseId);
+  }
   return wpGet(`/wp-json/bodhi/v1/progress?course_id=${courseId}`);
 }
 
@@ -468,6 +552,56 @@ export const getLessonPlay = (lessonId) =>
   wpGet(`/wp-json/bodhi-mobile/v1/lesson/${lessonId}/play`);
 
 export async function setProgress(courseId, lessonId, done = true) {
+  const mode = await getApiMode();
+
+  const resolvePendingLessonId = async (fetchDetailFn) => {
+    let targetLessonId = lessonId;
+
+    if (targetLessonId == null) {
+      try {
+        const detail = await fetchDetailFn(courseId);
+        const container =
+          detail?.data && typeof detail.data === "object" ? detail.data : detail;
+        const modules = Array.isArray(container?.modules) ? container.modules : [];
+        for (const module of modules) {
+          const lessons = Array.isArray(module?.lessons) ? module.lessons : [];
+          const pending = lessons.find(
+            (lesson) => !(lesson.completed || lesson.done),
+          );
+          if (pending) {
+            targetLessonId =
+              pending.id ??
+              pending.lesson_id ??
+              pending.post_id ??
+              pending.ID ??
+              pending.slug ??
+              null;
+            break;
+          }
+        }
+      } catch {
+        // ignore and validate later
+      }
+    }
+
+    if (targetLessonId == null) {
+      throw new Error("No hay lecciones pendientes por completar.");
+    }
+
+    return targetLessonId;
+  };
+
+  if (mode === API_MODES.HP) {
+    const targetLessonId = await resolvePendingLessonId(getCourseDetail);
+    await postCompleteLesson(targetLessonId, { done: !!done });
+    return { ok: true };
+  }
+
+  if (mode === API_MODES.HP_MOCK) {
+    const targetLessonId = await resolvePendingLessonId(getCourseDetailMock);
+    await postCompleteLessonMock(targetLessonId, { done: !!done });
+    return { ok: true };
+  }
   return wpPost("/wp-json/bodhi/v1/progress", {
     course_id: courseId,
     lesson_id: lessonId,

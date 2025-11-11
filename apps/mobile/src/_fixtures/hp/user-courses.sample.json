@@ -1,0 +1,63 @@
+{
+  "data": {
+    "user_id": 6734,
+    "generated_at": "2025-02-24T12:23:11-06:00",
+    "items": [
+      {
+        "course_id": 234,
+        "id": 234,
+        "title": "Formación Bodhi Medicine 2025",
+        "cover_image": "https://staging.bodhimedicine.com/wp-content/uploads/2025/04/5-6-1.png",
+        "access": "owned",
+        "percent": "4%",
+        "modules_count": 5,
+        "lessons_count": 51,
+        "category": "Formación",
+        "summary": "Entrenamiento anual enfocado en la conexión cuerpo-mente con sesiones semanales en vivo y materiales grabados.",
+        "progress": {
+          "pct": "4%",
+          "completed_lessons": 2,
+          "total_lessons": 51,
+          "updated_at": "2025-02-24T12:20:02-06:00"
+        }
+      },
+      {
+        "course_id": 412,
+        "id": 412,
+        "title": "Programa HeartMath",
+        "cover_image": "https://staging.bodhimedicine.com/wp-content/uploads/2025/03/new_course_5.png",
+        "access": "locked",
+        "percent": "0%",
+        "modules_count": 3,
+        "lessons_count": 18,
+        "category": "Programa",
+        "summary": "Certificación de coherencia corazón-cerebro para restablecer el sistema nervioso.",
+        "progress": {
+          "pct": "0%",
+          "completed_lessons": 0,
+          "total_lessons": 18
+        }
+      },
+      {
+        "course_id": 918,
+        "id": 918,
+        "title": "Círculo Bodhi Medicine",
+        "cover_image": "https://staging.bodhimedicine.com/wp-content/uploads/2025/03/new_course_2.png",
+        "access": "locked",
+        "percent": "0%",
+        "modules_count": 6,
+        "lessons_count": 24,
+        "category": "Círculo",
+        "summary": "Prácticas conscientes mensuales y sesiones de respiración para acompañarte todo el año.",
+        "progress": {
+          "pct": "0%",
+          "completed_lessons": 0,
+          "total_lessons": 24
+        }
+      }
+    ],
+    "itemsOwned": [234],
+    "total": 3,
+    "owned": 1
+  }
+}

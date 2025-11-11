@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CookieManager from '@react-native-cookies/cookies';
 import { me } from './bodhi';
+import { onWpLoginSetHpUserId } from './hpConfig';
 
 const DEFAULT_BASE = 'https://staging.bodhimedicine.com';
 const configuredBase = process.env.EXPO_PUBLIC_WP_BASE ?? DEFAULT_BASE;
@@ -322,6 +323,11 @@ export async function verifySession() {
   console.log('[cookie jar]', jar);
 
   const profile = await me();
+  try {
+    await onWpLoginSetHpUserId(profile);
+  } catch (error) {
+    console.warn('[verifySession] hp_user_id set failed', error);
+  }
   console.log('[me]', profile);
   return profile;
 }

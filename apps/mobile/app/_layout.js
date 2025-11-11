@@ -1,3 +1,4 @@
+import '@/src/_core/hpConfig';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';

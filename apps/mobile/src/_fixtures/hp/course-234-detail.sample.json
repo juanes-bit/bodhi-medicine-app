@@ -1,0 +1,85 @@
+{
+  "id": 234,
+  "title": "Formación Bodhi Medicine 2025",
+  "slug": "formacion-bodhi-medicine-2025",
+  "cover_image": "https://staging.bodhimedicine.com/wp-content/uploads/2025/04/5-6-1.png",
+  "image": "https://staging.bodhimedicine.com/wp-content/uploads/2025/04/5-6-1.png",
+  "category": "Formación",
+  "access": "owned",
+  "percent": "4%",
+  "lessons_count": 8,
+  "summary": "Transforma tu biología con prácticas corporales, sesiones en vivo y materiales grabados.",
+  "description": "Entrenamiento anual que combina respiración consciente, neuroplasticidad y ejercicios somáticos para restablecer la inteligencia biológica.",
+  "modules": [
+    {
+      "id": 9905,
+      "title": "Módulo 1 · Redescubre tu biología",
+      "order": 0,
+      "lessons": [
+        {
+          "id": 9896,
+          "title": "Día 1 · Introducción al mapa Bodhi",
+          "duration": "62:00",
+          "done": true,
+          "video_url": "https://vimeo.com/1059169429/47e1809779"
+        },
+        {
+          "id": 9897,
+          "title": "Día 2 · Regulación del sistema nervioso",
+          "duration": "58:32",
+          "done": true,
+          "video_url": "https://vimeo.com/1059374237/7fcbbb1872"
+        },
+        {
+          "id": 9898,
+          "title": "Día 3 · Respiración somática guiada",
+          "duration": "55:11",
+          "done": false,
+          "video_url": "https://vimeo.com/1059580097/83fe584761"
+        },
+        {
+          "id": 9899,
+          "title": "Integración semanal",
+          "duration": "32:45",
+          "done": false,
+          "video_url": "https://vimeo.com/1059711183/2aa24dd3dd"
+        }
+      ]
+    },
+    {
+      "id": 9906,
+      "title": "Módulo 2 · Mensajes secretos del cuerpo",
+      "order": 1,
+      "lessons": [
+        {
+          "id": 9907,
+          "title": "Día 1 · Escucha biológica",
+          "duration": "48:21",
+          "done": false,
+          "video_url": "https://vimeo.com/1066063947/1889e00a63"
+        },
+        {
+          "id": 9908,
+          "title": "Día 2 · Bloqueos emocionales",
+          "duration": "52:04",
+          "done": false,
+          "video_url": "https://vimeo.com/1066114198/1f8f3176c7"
+        },
+        {
+          "id": 9910,
+          "title": "Día 3 · Ilumina tu mente",
+          "duration": "49:39",
+          "done": false,
+          "video_url": "https://vimeo.com/1066199011/0aa49f96be"
+        },
+        {
+          "id": 9911,
+          "title": "Cierre · Expande tus horizontes",
+          "duration": "41:10",
+          "done": false,
+          "video_url": "https://vimeo.com/1078780227/9ea4be61ac"
+        }
+      ]
+    }
+  ]
+}
